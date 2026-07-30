@@ -259,7 +259,7 @@
 
       if (this._raf) cancelAnimationFrame(this._raf);
       const STING_MS = INTRO_REDUCED ? 0 : 1600;
-      if (!INTRO_REDUCED) this._stingAnimate();
+      if (!INTRO_REDUCED) this._stingAnimate(audioCtx);
 
       setTimeout(() => {
         try {
@@ -274,7 +274,8 @@
     }
 
     _playSting(ctx) {
-      const now = ctx.currentTime;
+      this._stingClock0 = ctx.currentTime;
+      const now = this._stingClock0;
       const notes = [
         { f: 392.0, t: 0.0, d: 0.55, g: 0.16 },
         { f: 587.33, t: 0.15, d: 0.55, g: 0.16 },
@@ -294,10 +295,13 @@
       });
     }
 
-    _stingAnimate() {
-      this._stingT0 = performance.now();
+    // One clock drives both halves: when Web Audio is available this reads
+    // audioCtx.currentTime — the same clock _playSting scheduled against —
+    // every frame, so the flash and the ping can't drift apart.
+    _stingAnimate(audioCtx) {
+      const perf0 = performance.now();
       const step = () => {
-        const t = (performance.now() - this._stingT0) / 1000;
+        const t = audioCtx ? (audioCtx.currentTime - this._stingClock0) : (performance.now() - perf0) / 1000;
         this._paintSting(Math.min(t, 1.6));
         if (t < 1.6) this._raf = requestAnimationFrame(step);
       };
