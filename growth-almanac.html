@@ -1,232 +1,145 @@
-<title>Thirty-Four Nights — a fairy tale, mostly true</title>
+<title>Brain — Growth</title>
 <meta name="color-scheme" content="light dark">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  /* This page commits to a single visual world on purpose: a fairy tale
-     that happens across NIGHTS has no honest daylight version. Same choice
-     the artifact-design guidance explicitly allows for a page built around
-     one deliberate atmosphere rather than a toggle. */
   :root{
-    color-scheme: dark;
-    --ground:#0a130e; --card:#12201780;
-    --ink:#e8ddc0; --ink-soft:#b9ab86; --ink-faint:#7c7159;
-    --line:#3a4a3c;
-    --firefly:#28b47f; --ember:#e46a35; --ember-soft:#33200f; --riddle:#5b96e0;
-    --serif: "Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,"Hoefler Text",Georgia,serif;
+    color-scheme: light dark;
+    --bg:#f4f6fa; --bg-deep:#e7ebf2;
+    --ink:#161b24; --ink-soft:#4b5566; --ink-faint:#6c7684;
+    --line:#d7dde6;
+    --seed:#2a78d6; --lesson:#eb6834; --tension:#1baf7a; --signal:#9a6b00;
     --mono: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0a0e15; --bg-deep:#050709;
+      --ink:#eef1f6; --ink-soft:#a7afbc; --ink-faint:#7c8492;
+      --line:#1c2330;
+      --seed:#3987e5; --lesson:#d95926; --tension:#199e70; --signal:#ffd9a8;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0a0e15; --bg-deep:#050709; --ink:#eef1f6; --ink-soft:#a7afbc; --ink-faint:#7c8492;
+    --line:#1c2330; --seed:#3987e5; --lesson:#d95926; --tension:#199e70; --signal:#ffd9a8;
+  }
+  :root[data-theme="light"]{
+    --bg:#f4f6fa; --bg-deep:#e7ebf2; --ink:#161b24; --ink-soft:#4b5566; --ink-faint:#6c7684;
+    --line:#d7dde6; --seed:#2a78d6; --lesson:#eb6834; --tension:#1baf7a; --signal:#9a6b00;
+  }
   *{box-sizing:border-box}
-  html{background:var(--ground)}
+  html,body{height:100%}
   body{
-    margin:0; background:var(--ground); color:var(--ink);
-    font-family:var(--serif); line-height:1.68;
-    -webkit-font-smoothing:antialiased;
+    margin:0; overflow:hidden; background:var(--bg); color:var(--ink);
+    font-family:var(--mono); -webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:760px; margin:0 auto; padding:clamp(28px,6vw,64px) clamp(18px,4vw,28px) 72px}
+  .stage{position:fixed; inset:0}
+  canvas#net{position:absolute; inset:0; display:block; width:100%; height:100%}
 
-  .eyebrow{
-    font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
-    color:var(--ink-faint); margin:0 0 16px; text-align:center;
+  .hud-top{
+    position:absolute; top:0; left:0; right:0; padding:clamp(14px,3vw,28px);
+    display:flex; justify-content:space-between; pointer-events:none;
+    font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint);
   }
-  h1{
-    font-size:clamp(36px,7.5vw,58px); font-weight:400; margin:0 0 8px; letter-spacing:.01em;
-    text-align:center; text-wrap:balance; line-height:1.05; font-style:italic;
-  }
-  .subtitle{
-    text-align:center; font-family:var(--mono); font-size:11px; letter-spacing:.1em;
-    text-transform:uppercase; color:var(--ink-faint); margin:0 0 40px;
-  }
-  .rule{
-    width:120px; height:1px; margin:44px auto; background:var(--line); position:relative;
-  }
-  .rule::before{content:"❦"; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-    background:var(--ground); padding:0 12px; color:var(--ink-faint); font-size:14px}
+  .hud-top .mark{color:var(--ink-soft)}
 
-  p{max-width:56ch; margin:0 auto 1.3em; font-size:16.5px; color:var(--ink-soft)}
-  p.open::first-letter{
-    font-family:var(--serif); font-size:3.4em; float:left; line-height:.78; padding:.04em .09em 0 0;
-    color:var(--ember); font-style:normal;
+  .counters{
+    position:absolute; left:clamp(14px,3vw,28px); top:50%; transform:translateY(-50%);
+    display:flex; flex-direction:column; gap:26px; pointer-events:none;
   }
+  .counter .n{
+    font-size:clamp(28px,5vw,46px); font-variant-numeric:tabular-nums; line-height:1;
+    font-weight:600; color:var(--ink); display:block;
+  }
+  .counter .l{
+    display:flex; align-items:center; gap:7px; margin-top:6px;
+    font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint);
+  }
+  .dot{width:7px; height:7px; border-radius:50%; flex:none}
+  .counter.seed .dot{background:var(--seed)}
+  .counter.lesson .dot{background:var(--lesson)}
 
-  h2{
-    text-align:center; font-size:clamp(22px,3.8vw,29px); font-weight:400; font-style:italic;
-    margin:0 0 20px; letter-spacing:.005em;
+  .flash{
+    position:absolute; top:clamp(54px,11vh,96px); left:50%; transform:translate(-50%,-6px);
+    font-size:clamp(12.5px,2.1vw,16px); font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--signal); opacity:0; transition:opacity .3s ease, transform .3s ease;
+    text-align:center; white-space:nowrap; pointer-events:none;
   }
+  .flash.on{opacity:1; transform:translate(-50%,0)}
+  .flash.big{font-size:clamp(15px,2.8vw,21px)}
 
-  /* ---------- the scene ---------- */
-  .scene-card{
-    position:relative; border-radius:3px; overflow:hidden; margin:0 0 8px;
-    box-shadow:0 20px 60px -20px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.06);
+  .epilogue{
+    position:absolute; right:clamp(14px,3vw,28px); top:50%; transform:translateY(-50%) translateX(8px);
+    display:flex; flex-direction:column; gap:18px; text-align:right;
+    opacity:0; transition:opacity .6s ease, transform .6s ease; pointer-events:none;
   }
-  canvas#chart{display:block; width:100%; height:auto}
-  .caption{
-    position:absolute; left:8%; right:8%; bottom:8%; text-align:center; pointer-events:none;
-    font-family:var(--serif); font-style:italic; font-size:clamp(14.5px,2.6vw,20px);
-    color:#f2ead6; text-shadow:0 2px 10px rgba(0,0,0,.7), 0 0 2px rgba(0,0,0,.9);
-    opacity:0; transform:translateY(8px);
-    transition:opacity .35s ease, transform .35s ease; z-index:4;
-  }
-  .caption.on{opacity:1; transform:translateY(0)}
-  .caption.big{font-size:clamp(17px,3.2vw,23px); color:#ffd9a8}
+  .epilogue.on{opacity:1; transform:translateY(-50%) translateX(0)}
+  .e-stat .n{font-size:clamp(19px,3.2vw,28px); font-variant-numeric:tabular-nums; color:var(--ink); display:block}
+  .e-stat .n small{font-size:.55em; color:var(--ink-faint); font-weight:400}
+  .e-stat .l{font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); margin-top:3px}
+  .e-stat.tension .n{color:var(--tension)}
 
-  .rail{display:flex; align-items:center; gap:12px; margin:16px 0 0; justify-content:center; flex-wrap:wrap}
+  .controls{
+    position:absolute; left:50%; bottom:clamp(16px,4vh,32px); transform:translateX(-50%);
+    display:flex; align-items:center; gap:12px;
+  }
   button{
-    font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
-    color:var(--ink); background:transparent; border:1px solid var(--line);
-    padding:8px 14px; cursor:pointer; border-radius:2px;
+    -webkit-appearance:none; appearance:none; background:transparent; border:1px solid var(--line);
+    color:var(--ink-soft); width:36px; height:36px; border-radius:50%; display:flex;
+    align-items:center; justify-content:center; cursor:pointer; padding:0;
   }
-  button:hover{border-color:var(--ember); color:var(--ember)}
-  button:focus-visible{outline:2px solid var(--ember); outline-offset:2px}
-  input[type=range]{width:180px; accent-color:var(--ember); cursor:pointer}
-  input[type=range]:focus-visible{outline:2px solid var(--ember); outline-offset:3px}
-  .night-readout{font-family:var(--mono); font-size:11px; color:var(--ink-faint); min-width:120px; text-align:left}
+  button:hover{border-color:var(--ink-soft); color:var(--ink)}
+  button:focus-visible{outline:2px solid var(--seed); outline-offset:2px}
+  button svg{width:13px; height:13px}
+  input[type=range]{width:min(38vw,220px); accent-color:var(--seed); cursor:pointer}
+  input[type=range]:focus-visible{outline:2px solid var(--seed); outline-offset:3px}
+  .readout{font-size:10.5px; color:var(--ink-faint); min-width:104px}
 
-  /* ---------- the three boxes ---------- */
-  .boxes{display:flex; flex-direction:column; gap:1px; background:var(--line); border-radius:2px; overflow:hidden}
-  .box{background:var(--card); backdrop-filter:blur(2px); padding:24px clamp(18px,4vw,30px); display:flex; gap:18px; align-items:flex-start}
-  .box .glyph{width:26px; height:26px; flex:none; margin-top:4px}
-  .box .body h3{font-size:18px; font-weight:400; font-style:italic; margin:0 0 6px; color:var(--ink)}
-  .box .body p{margin:0; text-align:left; font-size:14.5px; max-width:none}
-  .box .tally{font-family:var(--mono); font-size:12.5px; margin-top:10px; letter-spacing:.02em}
-  .box.seed .tally{color:var(--firefly)} .box.lesson .tally{color:var(--ember)} .box.question .tally{color:var(--riddle)}
+  @media (prefers-reduced-motion:reduce){ .flash, .epilogue{transition-duration:.001ms} }
+  ::selection{background:var(--seed); color:#fff}
 
-  /* ---------- the rule ---------- */
-  .habits{display:flex; flex-direction:column; gap:0}
-  .habit{display:flex; gap:16px; padding:14px 0; border-bottom:1px solid var(--line)}
-  .habit:last-child{border-bottom:none}
-  .habit .k{font-family:var(--mono); font-size:10px; color:var(--ink-faint); letter-spacing:.1em; min-width:78px; padding-top:3px}
-  .habit h4{font-size:15.5px; font-weight:400; font-style:italic; margin:0 0 4px; color:var(--ink)}
-  .habit p{margin:0; text-align:left; font-size:13.5px; max-width:none}
-
-  /* ---------- gardens & houses ---------- */
-  .tallies{display:flex; gap:40px; justify-content:center; margin:8px 0 26px; flex-wrap:wrap}
-  .tally-stat{text-align:center}
-  .tally-stat .num{font-family:var(--serif); font-style:italic; font-size:40px; color:var(--ink); display:block}
-  .tally-stat .cap{font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; color:var(--ink-faint); max-width:20ch; display:block; margin:6px auto 0}
-
-  footer{margin-top:60px; text-align:center}
-  footer p{font-family:var(--mono); font-size:11px; color:var(--ink-faint); line-height:1.9; max-width:52ch}
-
-  @media (prefers-reduced-motion:reduce){ *{transition-duration:.001ms !important} }
-  ::selection{background:var(--ember-soft); color:var(--ink)}
+  @media (max-width: 680px){
+    .counters{ top:64px; left:14px; transform:none; flex-direction:row; gap:18px }
+    .counter .n{ font-size:22px }
+    .epilogue{ top:auto; bottom:64px; right:14px; transform:none; flex-direction:row; gap:14px }
+    .e-stat .n{ font-size:15px }
+    .e-stat .l{ font-size:8.5px }
+  }
 </style>
 
-<div class="wrap">
+<div class="stage">
+  <canvas id="net" role="img" aria-label="An animated visualization of two growing clusters of glowing points, one for every idea kept and one for every lesson learned by the Brain cognitive system, accumulated day by day over 46 days."></canvas>
 
-<p class="eyebrow">A fairy tale · told true · June 14 – July 30, 2026</p>
-<h1>Thirty-Four Nights</h1>
-<p class="subtitle">or, the account of a small thing that would not stop growing</p>
+  <div class="hud-top">
+    <span class="mark">brain / growth</span>
+    <span class="range">jun 14 &rarr; jul 30, 2026</span>
+  </div>
 
-<p class="open">Once, in a small dark room at the edge of nowhere, there
-  lived a thing with no name and no body — only a terrible hunger to
-  remember. It could not walk, and it could not speak above a whisper. But
-  it could learn, and what it learned, it never once forgot. What follows
-  is the true account of its first thirty-four nights, set down exactly as
-  they happened, with not one number changed to make the telling kinder.</p>
-
-<div class="rule"></div>
-
-<h2>And it began to grow</h2>
-<p>Watch, if you like — this is no trick. Every firefly that lights and
-  every stone that falls below is a real night, counted true. By morning,
-  the whole garden had changed shape.</p>
-
-<div class="scene-card">
-  <canvas id="chart" width="1500" height="1400"></canvas>
-  <div class="caption" id="caption"></div>
-</div>
-<div class="rail">
-  <button id="play">Tell it again</button>
-  <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Move through the nights">
-  <span class="night-readout" id="dateReadout">Night 0 · Jun 14</span>
-</div>
-
-<div class="rule"></div>
-
-<h2>What it kept in its three boxes</h2>
-<p>No box was ever a junk drawer. Everything it gathered was sorted, on
-  purpose, the moment it was found:</p>
-
-<div class="boxes">
-  <div class="box seed">
-    <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="var(--firefly)" stroke-width="1.5"><circle cx="12" cy="10" r="3.2"/><path d="M12 13.2V21M8 21h8" stroke-linecap="round"/></svg>
-    <div class="body">
-      <h3>A sack of unplanted seeds</h3>
-      <p>Every trick worth trying went in here, whether or not it had ever
-        once been tried. A seed does not need to sprout to be worth
-        keeping — it only needs to be worth someone else's soil.</p>
-      <div class="tally">527 seeds, and the sack is never full</div>
+  <div class="counters">
+    <div class="counter seed">
+      <span class="n" id="cSeed">0</span>
+      <span class="l"><i class="dot"></i>ideas</span>
+    </div>
+    <div class="counter lesson">
+      <span class="n" id="cLesson">0</span>
+      <span class="l"><i class="dot"></i>lessons</span>
     </div>
   </div>
-  <div class="box lesson">
-    <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="1.5"><path d="M12 3 4 8v6c0 5 3.6 8.4 8 10 4.4-1.6 8-5 8-10V8l-8-5Z"/></svg>
-    <div class="body">
-      <h3>A shelf of paid-for stones</h3>
-      <p>Each stone came from a real wound, in a real place, with the
-        exact cure carved beneath it. Nothing on this shelf is a guess —
-        every stone was earned the hard way, and is heavier for it.</p>
-      <div class="tally">522 stones, and every one of them true</div>
-    </div>
+
+  <div class="flash" id="flash"></div>
+
+  <div class="epilogue" id="epilogue">
+    <div class="e-stat"><span class="n" id="eTested">92</span><span class="l">tested</span></div>
+    <div class="e-stat"><span class="n" id="eBuilt">26</span><span class="l">built</span></div>
+    <div class="e-stat tension"><span class="n">5<small>/25</small></span><span class="l">open</span></div>
   </div>
-  <div class="box question">
-    <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="var(--riddle)" stroke-width="1.5"><path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4"/><circle cx="12" cy="18" r=".9" fill="var(--riddle)" stroke="none"/></svg>
-    <div class="body">
-      <h3>A box of five riddles</h3>
-      <p>Twenty riddles it had already leaned an answer toward, though not
-        carved in stone. Five, it still turns over by candlelight — it
-        would rather leave a door open than nail it shut with a lie.</p>
-      <div class="tally">5 riddles unanswered, of 25 ever asked</div>
-    </div>
+
+  <div class="controls">
+    <button id="play" type="button" aria-label="Pause">
+      <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+    <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Move through the days">
+    <span class="readout" id="readout">Day 0 &middot; Jun 14</span>
   </div>
-</div>
-
-<div class="rule"></div>
-
-<h2>The rule it never broke</h2>
-<p>An old habit, kept on every single night, and checked by something
-  other than itself — so it could never quietly cheat:</p>
-
-<div class="habits">
-  <div class="habit"><span class="k">ASK FIRST</span>
-    <div><h4>Consult the shelf</h4><p>Before trying anything new: has this
-      wall been walked into before? Almost always, yes.</p></div></div>
-  <div class="habit"><span class="k">PROVE IT</span>
-    <div><h4>In the walled garden</h4><p>Never trust a feeling. Test it
-      first, somewhere nothing real can break.</p></div></div>
-  <div class="habit"><span class="k">TELL THE TRUTH</span>
-    <div><h4>Write what truly happened</h4><p>Not what was hoped for —
-      what was <em>true</em>, even when it embarrassed the first
-      guess.</p></div></div>
-  <div class="habit"><span class="k">SEAL IT</span>
-    <div><h4>Let a stranger check</h4><p>Something other than itself reads
-      every note before it's kept for good — watching for lies, and for
-      anything already written once before.</p></div></div>
-</div>
-
-<div class="rule"></div>
-
-<h2>Where it practiced, and where it truly built</h2>
-<p>Almost none of it happened somewhere real. That was always the point.</p>
-
-<div class="tallies">
-  <div class="tally-stat"><span class="num">92</span>
-    <span class="cap">walled gardens, sealed and small, built to test one claim and quietly left to overgrow</span></div>
-  <div class="tally-stat"><span class="num" style="color:var(--ember)">26</span>
-    <span class="cap">real houses raised in the village beyond — mostly playthings, a few honest tools</span></div>
-</div>
-<p>Among them: a small house where a dog is walked through a park each
-  evening; a watchtower stand-off called <em>Opticon</em>; four cottages
-  that all share one plain name, <em>the game</em>, and nothing else; and
-  this very page — though it is too newly built to be counted among them
-  yet.</p>
-
-<footer>
-  <p>And so, on the thirtieth night of July, the telling stops — not
-    because the thing stopped growing, but because that is where this true
-    account ends, for now. Every number above is exactly as it was found:
-    nothing rounded, nothing borrowed, nothing softened to flatter the
-    tale. Written down whole, the night it was finished.</p>
-</footer>
-
 </div>
 
 <script>
@@ -234,6 +147,7 @@
 "use strict";
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/* ---------- real data: daily cumulative counts, sampled from full git history ---------- */
 const SEED = [
   ["2026-06-27",29],["2026-06-30",39],["2026-07-01",65],["2026-07-02",65],
   ["2026-07-04",67],["2026-07-07",69],["2026-07-08",70],["2026-07-09",82],
@@ -251,22 +165,21 @@ const LESSON = [
   ["2026-07-30",522],
 ];
 const MILESTONES = [
-  {d:"2026-06-30",t:"On the last night of June, it took its very first steps.",note:"first working version of a real, playable game."},
-  {d:"2026-07-01",t:"Before dawn, it had tested three secrets in a walled garden where nothing could go wrong.",note:"a diff algorithm, a scheduler, a parser — proven safe first."},
-  {d:"2026-07-04",t:"It sat a long while, studying how films are made to explain things.",note:"external research into explainer-video craft."},
-  {d:"2026-07-09",t:"Then it studied how old stories are told — twice, to be sure.",note:"a full pass on narrative craft, from outside sources."},
-  {d:"2026-07-11",t:"Then came the eleventh night, and everything changed at once — five new crafts learned between dusk and dawn.",note:"97 fireflies became 298 before the cock crowed.",big:true},
-  {d:"2026-07-16",t:"It learned the old art of persuasion, and grew a little vain about it.",note:"pitching, presenting, arguing its case."},
-  {d:"2026-07-18",t:"Stillness, secrets, and games built for two — all in one strange evening.",note:"new crafts: minimalist calm, third-party mods, couch co-op."},
-  {d:"2026-07-20",t:"Eleven crafts in a single night. Even the owls were impressed.",note:"networking, text, physics, typography, and more, all at once."},
-  {d:"2026-07-26",t:"It watched another creature play, from a distance, and answered back.",note:"studied real playtest footage and responded to it."},
+  {d:"2026-06-30", flash:"first steps", big:false},
+  {d:"2026-07-01", flash:"safe-test proven", big:false},
+  {d:"2026-07-04", flash:"studied film", big:false},
+  {d:"2026-07-09", flash:"studied story, twice", big:false},
+  {d:"2026-07-11", flash:"five at once", big:true},
+  {d:"2026-07-16", flash:"learned to pitch", big:false},
+  {d:"2026-07-18", flash:"calm &middot; mods &middot; co-op", big:false},
+  {d:"2026-07-20", flash:"eleven at once", big:false},
+  {d:"2026-07-26", flash:"watched, then answered", big:false},
 ];
 
 const DAY_MS = 86400000;
 function parseD(s){ const [y,m,d]=s.split('-').map(Number); return Date.UTC(y,m-1,d); }
 const START = parseD("2026-06-14");
 const END = parseD("2026-07-30");
-
 function densify(series){
   const out = [];
   for (let t = START; t <= END; t += DAY_MS){
@@ -278,141 +191,194 @@ function densify(series){
 }
 const seedDaily = densify(SEED);
 const lessonDaily = densify(LESSON);
-const yMax = Math.ceil(Math.max(seedDaily[seedDaily.length-1], lessonDaily[lessonDaily.length-1]) / 50) * 50;
+const totalDays = seedDaily.length - 1;
 
-function cr(p0,p1,p2,p3,u){
-  const u2=u*u,u3=u2*u;
-  return .5*((2*p1)+(-p0+p2)*u+(2*p0-5*p1+4*p2-p3)*u2+(-p0+3*p1-3*p2+p3)*u3);
-}
-function smoothPath(vals, upToIndex){
-  const pts = [];
-  const lastI = Math.min(upToIndex, vals.length - 1);
-  const steps = 6;
-  for (let i = 0; i < lastI; i++){
-    const p0 = vals[Math.max(0,i-1)], p1 = vals[i], p2 = vals[i+1], p3 = vals[Math.min(vals.length-1,i+2)];
-    for (let s = 0; s < steps; s++){
-      const u = s/steps;
-      pts.push([i+u, Math.max(0, cr(p0,p1,p2,p3,u))]);
-    }
+/* ---------- two hemispheres of nodes, one per real entry, golden-angle spiral fill ---------- */
+const GOLDEN = Math.PI*(3-Math.sqrt(5));
+
+function buildNodes(daily){
+  const nodes = [];
+  let prev = 0;
+  for (let day=0; day<daily.length; day++){
+    const delta = daily[day]-prev;
+    for (let j=0;j<delta;j++) nodes.push({day, k:nodes.length});
+    prev = daily[day];
   }
-  pts.push([lastI, vals[lastI]]);
-  return pts;
+  return nodes;
+}
+function boundaryAt(angle, off){
+  return 0.78 + 0.10*Math.sin(3*angle+off) + 0.09*Math.sin(5*angle+1.7*off) + 0.06*Math.sin(7*angle+2.3*off);
+}
+function placeNodes(nodes, off){
+  const total = nodes.length;
+  for (const n of nodes){
+    const angle = n.k*GOLDEN;
+    const rNorm = Math.sqrt((n.k+0.5)/total);
+    const r = rNorm*boundaryAt(angle, off)*0.95;
+    n.ux = Math.cos(angle)*r;
+    n.uy = Math.sin(angle)*r*0.88;
+  }
+}
+function buildParents(nodes){
+  const parent = new Array(nodes.length);
+  parent[0] = -1;
+  for (let i=1;i<nodes.length;i++){
+    let best=-1, bestD=Infinity;
+    const a = nodes[i];
+    for (let j=0;j<i;j++){
+      const b = nodes[j];
+      const dx=a.ux-b.ux, dy=a.uy-b.uy;
+      const d=dx*dx+dy*dy;
+      if (d<bestD){ bestD=d; best=j; }
+    }
+    parent[i]=best;
+  }
+  return parent;
 }
 
-/* deterministic hash noise — for the treeline silhouette and starfield */
-function h2(x,y){ const v=Math.sin(x*127.1+y*311.7)*43758.5453; return v-Math.floor(v); }
+const seedNodes = buildNodes(seedDaily);
+const lessonNodes = buildNodes(lessonDaily);
+placeNodes(seedNodes, 1.3);
+placeNodes(lessonNodes, 4.1);
+const seedParent = buildParents(seedNodes);
+const lessonParent = buildParents(lessonNodes);
 
-const cv = document.getElementById("chart");
-const ctx = cv.getContext("2d");
-const CW = cv.width, CH = cv.height;
-const GROUND_Y = CH*0.86;
-const PLOT_TOP = CH*0.1, PLOT_BOT = GROUND_Y - 6;
+/* ---------- canvas ---------- */
+const stage = document.querySelector('.stage');
+const cv = document.getElementById('net');
+const ctx = cv.getContext('2d');
+let CW=0, CH=0;
 
 function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-function xAt(dayIndex){ return CW*0.08 + (dayIndex/(seedDaily.length-1)) * (CW*0.84); }
-function yAt(v){ return PLOT_BOT - (v/yMax) * (PLOT_BOT-PLOT_TOP); }
-
-function draw(dayIndex, punch){
-  const frac = Math.max(0, Math.min(1, dayIndex/(seedDaily.length-1)));
-
-  // sky gradient — deepens toward "midnight" as the tale proceeds
-  const g = ctx.createLinearGradient(0,0,0,GROUND_Y);
-  g.addColorStop(0, `rgb(${13+frac*4},${26-frac*10},${20-frac*6})`);
-  g.addColorStop(1, `rgb(${18+frac*4},${38-frac*14},${27-frac*8})`);
-  ctx.fillStyle = g; ctx.fillRect(0,0,CW,GROUND_Y);
-  ctx.fillStyle = '#0a130e'; ctx.fillRect(0,GROUND_Y,CW,CH-GROUND_Y);
-
-  // stars (deterministic, more visible as the tale deepens)
-  for (let i=0;i<140;i++){
-    const sx = h2(i,1)*CW, sy = h2(i,2)*GROUND_Y*0.85;
-    const tw = 0.25 + 0.6*h2(i,3);
-    ctx.fillStyle = `rgba(244,236,216,${tw*(0.35+frac*0.4)})`;
-    ctx.fillRect(sx, sy, 1.6, 1.6);
-  }
-
-  // moon — waxes as the tale proceeds
-  const moonR = 30 + frac*30;
-  const mx = CW*0.12, my = CH*0.13;
-  const mg = ctx.createRadialGradient(mx,my,0,mx,my,moonR*2.2);
-  mg.addColorStop(0, `rgba(255,244,214,${0.16+frac*0.22})`);
-  mg.addColorStop(1, 'rgba(255,244,214,0)');
-  ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx,my,moonR*2.2,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = `rgba(244,236,216,${0.55+frac*0.35})`;
-  ctx.beginPath(); ctx.arc(mx,my,moonR,0,Math.PI*2); ctx.fill();
-
-  // distant treeline silhouette
-  ctx.fillStyle = '#0d1913';
-  ctx.beginPath(); ctx.moveTo(0,GROUND_Y);
-  for (let x=0;x<=CW;x+=CW/40){
-    const h = 18 + h2(x*0.01,7)*46;
-    ctx.lineTo(x, GROUND_Y-h);
-  }
-  ctx.lineTo(CW,GROUND_Y); ctx.closePath(); ctx.fill();
-
-  function drawVine(vals, color, glowColor){
-    const pts = smoothPath(vals, dayIndex);
-    if (pts.length < 2) return;
-    const punchScale = punch > 0 ? 1 + punch*1.3 : 1;
-    ctx.save();
-    ctx.shadowColor = glowColor; ctx.shadowBlur = (10+punch*26);
-    ctx.strokeStyle = color; ctx.lineWidth = 3.6*punchScale; ctx.lineJoin='round'; ctx.lineCap='round';
-    ctx.beginPath();
-    pts.forEach(([i,v],k)=>{ const x=xAt(i), y=yAt(v); k===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
-    ctx.stroke();
-    ctx.restore();
-    // fireflies/embers along the path
-    for (let i=0;i<=Math.min(dayIndex,vals.length-1); i+=3){
-      const x=xAt(i), y=yAt(vals[i]);
-      const flicker = 0.5+0.5*Math.sin(i*12.9 + (REDUCED?0:performance.now()/600));
-      ctx.fillStyle = color; ctx.globalAlpha = 0.35+flicker*0.5;
-      ctx.beginPath(); ctx.arc(x,y, 1.6+flicker*1.4, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-    const li = Math.min(Math.floor(dayIndex), vals.length-1);
-    const ex = xAt(dayIndex<=vals.length-1?dayIndex:li), ey = yAt(vals[li]);
-    ctx.save();
-    ctx.shadowColor = glowColor; ctx.shadowBlur = 16+punch*30;
-    ctx.fillStyle = color;
-    ctx.beginPath(); ctx.arc(ex,ey,4.5*punchScale,0,Math.PI*2); ctx.fill();
-    ctx.restore();
-  }
-  drawVine(lessonDaily, css('--ember'), css('--ember'));
-  drawVine(seedDaily, css('--firefly'), css('--firefly'));
-
-  // milestone marks — small stars low on the treeline
-  MILESTONES.forEach(m=>{
-    const idx = Math.round((parseD(m.d)-START)/DAY_MS);
-    if (idx > dayIndex) return;
-    const x = xAt(idx), y = GROUND_Y-4;
-    ctx.save();
-    ctx.shadowColor = '#ffd9a8'; ctx.shadowBlur = m.big?22:8;
-    ctx.fillStyle = '#ffe9c4';
-    ctx.beginPath(); ctx.arc(x,y, m.big?4.5:2.6, 0, Math.PI*2); ctx.fill();
-    ctx.restore();
-  });
-
-  // vignette
-  const vg = ctx.createRadialGradient(CW/2,CH*0.4,CH*0.25,CW/2,CH*0.4,CH*0.85);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.5)');
-  ctx.fillStyle = vg; ctx.fillRect(0,0,CW,CH);
+function hexToRgba(hex, a){
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
 }
 
+function resize(){
+  const r = stage.getBoundingClientRect();
+  const dpr = Math.min(devicePixelRatio||1, 2);
+  CW = r.width; CH = r.height;
+  cv.width = Math.round(CW*dpr); cv.height = Math.round(CH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  draw(dayIndex, punch);
+}
+let resizeTimer = null;
+window.addEventListener('resize', ()=>{ clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 100); });
+
+function geometry(){
+  const cx = CW*0.5, cy = CH*0.53;
+  const lobeR = Math.min(CW*0.30, CH*0.44);
+  return {
+    seed:   {x: cx-lobeR*0.60, y: cy, r: lobeR, off: 1.3},
+    lesson: {x: cx+lobeR*0.60, y: cy, r: lobeR, off: 4.1},
+  };
+}
+
+function drawLobeOutline(g, color){
+  ctx.beginPath();
+  for (let i=0;i<=72;i++){
+    const angle = (i/72)*Math.PI*2;
+    const rad = boundaryAt(angle, g.off)*0.97;
+    const x = g.x+Math.cos(angle)*rad*g.r;
+    const y = g.y+Math.sin(angle)*rad*g.r*0.88;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = color; ctx.lineWidth=1; ctx.globalAlpha=0.28; ctx.stroke(); ctx.globalAlpha=1;
+}
+
+function drawCluster(nodes, parent, g, color, dayIdx, punchV, t){
+  for (let i=0;i<nodes.length;i++){
+    const n = nodes[i];
+    const age = dayIdx - n.day;
+    if (age < 0) continue;
+    let opacity = Math.min(1, age*2.2);
+    if (opacity<=0) continue;
+    const isFrontier = age < 1.2;
+    if (isFrontier && !REDUCED) opacity *= 0.82+0.18*Math.sin(t*3+n.k);
+    const x = g.x + n.ux*g.r;
+    const y = g.y + n.uy*g.r;
+
+    const p = parent[i];
+    if (p>=0){
+      const pn = nodes[p];
+      const px = g.x+pn.ux*g.r, py = g.y+pn.uy*g.r;
+      ctx.save();
+      ctx.globalAlpha = opacity*0.5;
+      if (isFrontier){ ctx.shadowColor=color; ctx.shadowBlur=6+punchV*10; }
+      ctx.strokeStyle = color; ctx.lineWidth = isFrontier?1.1:0.6;
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(x,y); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    if (isFrontier){ ctx.shadowColor=color; ctx.shadowBlur = 10+punchV*22; }
+    ctx.fillStyle = color;
+    const rad = isFrontier ? 2.3+punchV*1.6 : 1.4;
+    ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+let burstStart = null;
+function triggerBurst(){ burstStart = performance.now(); }
+
+function draw(dayIdx, punchV){
+  ctx.clearRect(0,0,CW,CH);
+  ctx.fillStyle = css('--bg'); ctx.fillRect(0,0,CW,CH);
+  const bgDeepHex = css('--bg-deep');
+  const vg = ctx.createRadialGradient(CW/2,CH/2,Math.min(CW,CH)*0.12,CW/2,CH/2,Math.max(CW,CH)*0.72);
+  vg.addColorStop(0, hexToRgba(bgDeepHex,0)); vg.addColorStop(1, hexToRgba(bgDeepHex,1));
+  ctx.fillStyle = vg; ctx.fillRect(0,0,CW,CH);
+
+  const geo = geometry();
+  const t = REDUCED ? 0 : performance.now()/1000;
+  drawLobeOutline(geo.seed, css('--seed'));
+  drawLobeOutline(geo.lesson, css('--lesson'));
+  drawCluster(seedNodes, seedParent, geo.seed, css('--seed'), dayIdx, punchV, t);
+  drawCluster(lessonNodes, lessonParent, geo.lesson, css('--lesson'), dayIdx, punchV, t);
+
+  if (burstStart !== null && !REDUCED){
+    const elapsed = (performance.now()-burstStart)/1000;
+    if (elapsed < 0.9){
+      const p = elapsed/0.9;
+      ctx.save();
+      ctx.globalAlpha = 1-p;
+      ctx.strokeStyle = css('--signal'); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(CW*0.5, CH*0.53, 12+p*76, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    } else burstStart = null;
+  }
+}
+
+/* ---------- playback ---------- */
 const el = {
-  scrub: document.getElementById("scrub"), play: document.getElementById("play"),
-  readout: document.getElementById("dateReadout"), caption: document.getElementById("caption"),
+  scrub: document.getElementById('scrub'), play: document.getElementById('play'),
+  readout: document.getElementById('readout'), flash: document.getElementById('flash'),
+  epilogue: document.getElementById('epilogue'),
+  cSeed: document.getElementById('cSeed'), cLesson: document.getElementById('cLesson'),
+  playIcon: document.getElementById('playIcon'),
 };
-const totalDays = seedDaily.length - 1;
+const ICON_PAUSE = 'M6 5h4v14H6zM14 5h4v14h-4z';
+const ICON_PLAY  = 'M8 5v14l11-7z';
+function setPlayIcon(isPlaying){
+  el.playIcon.querySelector('path').setAttribute('d', isPlaying?ICON_PAUSE:ICON_PLAY);
+  el.play.setAttribute('aria-label', isPlaying?'Pause':'Play');
+}
+
 let playing = false, dayIndex = 0, raf = null, lastT = 0, punch = 0, idleRaf = null;
 
-function fmtNight(idx){
+function fmtDay(idx){
   const t = START + Math.floor(idx)*DAY_MS;
   const label = new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
-  return `Night ${Math.floor(idx)} · ${label}`;
+  return `Day ${Math.floor(idx)} · ${label}`;
 }
-function showCaption(m){
-  el.caption.textContent = m.t;
-  el.caption.classList.toggle('big', !!m.big);
-  el.caption.classList.add('on');
+function showFlash(m){
+  el.flash.innerHTML = m.flash;
+  el.flash.classList.toggle('big', !!m.big);
+  el.flash.classList.add('on');
   if (m.big) punch = 1;
 }
 function idleGlow(){
@@ -423,18 +389,22 @@ function stopIdle(){ if (idleRaf) cancelAnimationFrame(idleRaf); idleRaf = null;
 function render(){
   draw(dayIndex, punch);
   el.scrub.value = Math.round((dayIndex/totalDays)*1000);
-  el.readout.textContent = fmtNight(Math.min(dayIndex, totalDays));
+  el.readout.textContent = fmtDay(Math.min(dayIndex, totalDays));
+  const shownDay = Math.min(Math.floor(dayIndex), totalDays);
+  el.cSeed.textContent = seedDaily[shownDay];
+  el.cLesson.textContent = lessonDaily[shownDay];
+  el.epilogue.classList.toggle('on', dayIndex >= totalDays);
   stopIdle();
   if (!REDUCED) idleGlow();
 }
-function stopPlay(){ playing=false; el.play.textContent="Tell it again"; if(raf) cancelAnimationFrame(raf); }
+function stopPlay(){ playing=false; setPlayIcon(false); if(raf) cancelAnimationFrame(raf); }
 
 function seekToDay(idx){
-  stopPlay(); punch = 0; el.caption.classList.remove('on');
+  stopPlay(); punch = 0; el.flash.classList.remove('on');
   dayIndex = Math.max(0, Math.min(totalDays, idx));
   render();
 }
-el.scrub.addEventListener("input", ()=> seekToDay(Math.round((el.scrub.value/1000)*totalDays)) );
+el.scrub.addEventListener('input', ()=> seekToDay(Math.round((el.scrub.value/1000)*totalDays)) );
 
 const milestoneStops = MILESTONES
   .map(m => ({ m, idx: Math.round((parseD(m.d)-START)/DAY_MS) }))
@@ -442,13 +412,14 @@ const milestoneStops = MILESTONES
 
 function startPlay(){
   stopIdle();
-  playing = true; el.play.textContent = "Hush, let it finish";
-  el.caption.classList.remove('on'); punch = 0;
-  dayIndex = 0;
+  playing = true; setPlayIcon(true);
+  el.flash.classList.remove('on'); el.epilogue.classList.remove('on');
+  punch = 0; dayIndex = 0;
   const DAYS_PER_SEC = 6.5;
   let stopI = 0;
 
   function travelTo(target, onArrive){
+    stopIdle();
     lastT = performance.now();
     function step(now){
       if (!playing) return;
@@ -457,7 +428,10 @@ function startPlay(){
       if (punch > 0) punch = Math.max(0, punch - 0.045);
       draw(dayIndex, punch);
       el.scrub.value = Math.round((dayIndex/totalDays)*1000);
-      el.readout.textContent = fmtNight(dayIndex);
+      el.readout.textContent = fmtDay(dayIndex);
+      const shownDay = Math.min(Math.floor(dayIndex), totalDays);
+      el.cSeed.textContent = seedDaily[shownDay];
+      el.cLesson.textContent = lessonDaily[shownDay];
       if (dayIndex >= target){ onArrive(); return; }
       raf = requestAnimationFrame(step);
     }
@@ -465,27 +439,31 @@ function startPlay(){
   }
   function next(){
     if (!playing) return;
-    if (stopI >= milestoneStops.length){ travelTo(totalDays, ()=>{ stopPlay(); idleGlow(); }); return; }
+    if (stopI >= milestoneStops.length){ travelTo(totalDays, ()=>{ stopPlay(); render(); }); return; }
     const {m, idx} = milestoneStops[stopI++];
     travelTo(idx, ()=>{
       if (!playing) return;
-      showCaption(m);
-      const hold = m.big ? 2200 : 1550;
+      showFlash(m);
+      triggerBurst();
+      idleGlow();
+      const hold = m.big ? 1900 : 1250;
       setTimeout(()=>{
         if (!playing) return;
-        el.caption.classList.remove('on');
-        setTimeout(next, 220);
+        el.flash.classList.remove('on');
+        setTimeout(next, 200);
       }, hold);
     });
   }
   next();
 }
-el.play.addEventListener("click", ()=>{ if (playing){ stopPlay(); return; } startPlay(); });
+el.play.addEventListener('click', ()=>{ if (playing){ stopPlay(); return; } startPlay(); });
 
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>draw(dayIndex,punch));
 new MutationObserver(()=>draw(dayIndex,punch)).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
 
+resize();
+setPlayIcon(false);
 if (REDUCED){ dayIndex = totalDays; render(); }
-else { draw(0,0); requestAnimationFrame(()=> startPlay()); }
+else { requestAnimationFrame(startPlay); }
 })();
 </script>
