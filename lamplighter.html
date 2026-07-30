@@ -511,9 +511,14 @@ el.skip.addEventListener("click",()=>{
   seek(DUR-0.05,"skip — carve-out, not gated by input lock");
   dispatch(t);   // fire every remaining marker in order, exactly once
 });
+/* KERNEL: dragging the scrub bar takes manual control — pause first, THEN
+   seek. Seeking while still "playing" let the running rAF loop immediately
+   overwrite the sought position on its next tick, so a drag appeared to
+   snap back to autoplay instead of holding where the user let go. */
 el.scrub.addEventListener("input",()=>{
+  if(playing){ playing=false; el.play.textContent="Play"; }
   seek(parseInt(el.scrub.value,10)/100,"scrub");
-  if(!playing) frame(performance.now(),true);
+  frame(performance.now(),true);
 });
 
 function frame(now,forced){
