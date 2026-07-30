@@ -261,7 +261,7 @@
       } catch (err) { /* Web Audio unsupported or blocked — sting/unlock still proceed with null */ }
 
       if (this._raf) cancelAnimationFrame(this._raf);
-      const STING_MS = INTRO_REDUCED ? 0 : 1000;
+      const STING_MS = INTRO_REDUCED ? 0 : 500;
       if (!INTRO_REDUCED) this._stingAnimate(audioCtx);
 
       setTimeout(() => {
@@ -282,7 +282,6 @@
       const notes = [
         { f: 392.0, t: 0.0, d: 0.25, g: 0.16 },
         { f: 587.33, t: 0.06, d: 0.25, g: 0.16 },
-        { f: 1174.66, t: 0.45, d: 0.18, g: 0.12 },
       ];
       notes.forEach((n) => {
         const osc = ctx.createOscillator();
@@ -305,8 +304,8 @@
       const perf0 = performance.now();
       const step = () => {
         const t = audioCtx ? (audioCtx.currentTime - this._stingClock0) : (performance.now() - perf0) / 1000;
-        this._paintSting(Math.min(t, 1.0));
-        if (t < 1.0) this._raf = requestAnimationFrame(step);
+        this._paintSting(Math.min(t, 0.45));
+        if (t < 0.45) this._raf = requestAnimationFrame(step);
       };
       this._raf = requestAnimationFrame(step);
     }
@@ -330,17 +329,6 @@
         ctx.fill();
         ctx.restore();
       });
-      if (t > 0.37 && t < 0.72) {
-        const p = (t - 0.37) / 0.35;
-        const alpha = Math.sin(p * Math.PI);
-        ctx.save();
-        ctx.globalAlpha = alpha * 0.9;
-        ctx.fillStyle = "#ffffff";
-        ctx.beginPath();
-        ctx.arc(cx, cy, 6 + p * 40, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
     }
 
     set onUnlock(fn) { this._onUnlock = fn; }
