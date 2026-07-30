@@ -1,0 +1,562 @@
+<title>The Lamplighter — a 3D cutscene built from Brain kernels</title>
+<style>
+  :root{
+    --void:#0a0e1a; --valley:#131b2e; --rock:#2a3550;
+    --amber:#ffb347; --amber-dim:#b87a2e;
+    --paper:#e8e4d9; --paper-dim:#8b93a7;
+    --rule:#1e2740;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--void); color:var(--paper);
+    font-family:var(--mono); -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column; align-items:center;
+    gap:0; min-height:100vh; padding:clamp(12px,3vw,32px);
+  }
+  header{width:100%; max-width:1100px; display:flex; justify-content:space-between;
+    align-items:baseline; gap:16px; flex-wrap:wrap; padding-bottom:14px}
+  h1{font-family:var(--serif); font-weight:400; font-size:clamp(20px,3.4vw,30px);
+    margin:0; letter-spacing:.01em; text-wrap:balance}
+  h1 em{color:var(--amber); font-style:italic}
+  .eyebrow{font-size:10.5px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--paper-dim)}
+  /* ---- cinematic stage: 2.39:1 letterbox ---- */
+  .stage{width:100%; max-width:1100px; position:relative; background:#000;
+    aspect-ratio:2.39/1; overflow:hidden; border:1px solid var(--rule)}
+  canvas{display:block; width:100%; height:100%}
+  .safe{position:absolute; inset:0; pointer-events:none}
+  /* narration sits inside the 90% safe-title band (SMPTE ST 2046-1) */
+  .narration{position:absolute; left:5%; right:5%; bottom:7%;
+    font-family:var(--serif); font-size:clamp(13px,1.9vw,21px); line-height:1.45;
+    text-align:center; text-wrap:balance; color:var(--paper);
+    text-shadow:0 1px 12px rgba(0,0,0,.9),0 0 3px rgba(0,0,0,.8);
+    opacity:0; transition:opacity .5s ease}
+  .narration.on{opacity:1}
+  .titlecard{position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:10px; text-align:center;
+    background:linear-gradient(180deg,rgba(10,14,26,.2),rgba(10,14,26,.75));
+    opacity:0; transition:opacity .8s ease}
+  .titlecard.on{opacity:1}
+  .titlecard .t{font-family:var(--serif); font-size:clamp(24px,5vw,52px);
+    letter-spacing:.03em}
+  .titlecard .s{font-size:10.5px; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--amber-dim)}
+  /* ---- transport ---- */
+  .rail{width:100%; max-width:1100px; display:flex; align-items:center; gap:12px;
+    padding:12px 0 4px}
+  button{font-family:var(--mono); font-size:11.5px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--paper); background:transparent;
+    border:1px solid var(--rule); padding:7px 13px; cursor:pointer;
+    transition:border-color .18s,color .18s}
+  button:hover{border-color:var(--amber-dim); color:var(--amber)}
+  button:focus-visible{outline:2px solid var(--amber); outline-offset:2px}
+  input[type=range]{flex:1; accent-color:var(--amber); min-width:80px; cursor:pointer}
+  input[type=range]:focus-visible{outline:2px solid var(--amber); outline-offset:3px}
+  .clock{font-size:11.5px; color:var(--paper-dim); font-variant-numeric:tabular-nums;
+    min-width:74px; text-align:right}
+  /* ---- kernel telemetry ---- */
+  .panel{width:100%; max-width:1100px; border:1px solid var(--rule); margin-top:14px}
+  .panel>summary{padding:11px 14px; cursor:pointer; font-size:10.5px;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--paper-dim)}
+  .panel>summary:hover{color:var(--amber)}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(255px,1fr));
+    gap:1px; background:var(--rule); border-top:1px solid var(--rule)}
+  .k{background:var(--void); padding:13px 14px; display:flex; flex-direction:column; gap:5px}
+  .k .n{font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--amber-dim)}
+  .k .d{font-size:11.5px; color:var(--paper-dim); line-height:1.5}
+  .k .v{font-size:11.5px; color:var(--paper); font-variant-numeric:tabular-nums}
+  .k.live .n{color:var(--amber)}
+  .log{font-size:11px; color:var(--paper-dim); padding:11px 14px;
+    border-top:1px solid var(--rule); line-height:1.7; max-height:104px; overflow-y:auto}
+  .log b{color:var(--amber); font-weight:400}
+  footer{width:100%; max-width:1100px; font-size:11px; color:var(--paper-dim);
+    padding-top:16px; line-height:1.6}
+  @media (prefers-reduced-motion:reduce){.narration,.titlecard{transition:none}}
+</style>
+
+<header>
+  <div>
+    <div class="eyebrow">Procedural 3D cutscene · software renderer · no libraries</div>
+    <h1>The <em>Lamplighter</em></h1>
+  </div>
+  <div class="eyebrow">Every mechanism below is a filed Brain kernel</div>
+</header>
+
+<div class="stage">
+  <canvas id="c"></canvas>
+  <div class="safe">
+    <div class="titlecard" id="card">
+      <div class="t">The Lamplighter</div>
+      <div class="s">A valley · one small light</div>
+    </div>
+    <div class="narration" id="narr"></div>
+  </div>
+</div>
+
+<div class="rail">
+  <button id="play">Pause</button>
+  <button id="skip">Skip</button>
+  <input type="range" id="scrub" min="0" max="2600" value="0" step="1" aria-label="Scrub timeline">
+  <div class="clock" id="clock">0.00 / 26.00</div>
+</div>
+
+<details class="panel" open>
+  <summary>Kernel telemetry — what's driving each frame</summary>
+  <div class="grid">
+    <div class="k" id="k-pure">
+      <div class="n">Cosmetic tracks as pure f(t)</div>
+      <div class="d">Camera, robot, narration all evaluated directly at t. Scrub anywhere — no replay.</div>
+      <div class="v" id="v-pure">t = 0.000s</div>
+    </div>
+    <div class="k" id="k-spline">
+      <div class="n">Catmull-Rom camera path</div>
+      <div class="d">One continuous curve through 6 keyframes, not per-segment lerp — no velocity pop.</div>
+      <div class="v" id="v-spline">segment 0 · |v| 0.00</div>
+    </div>
+    <div class="k" id="k-ptr">
+      <div class="n">Monotonic marker pointer</div>
+      <div class="d">Consumes an index, never re-evaluates a tolerance predicate. Cannot double-fire.</div>
+      <div class="v" id="v-ptr">next 0/3 · fired 0</div>
+    </div>
+    <div class="k" id="k-dt">
+      <div class="n">rAF loop, capped dt</div>
+      <div class="d">Repaint-synced and auto-pausing when backgrounded; dt capped so a stall can't skip a marker.</div>
+      <div class="v" id="v-dt">dt 0.0ms · caps 0</div>
+    </div>
+    <div class="k" id="k-arc">
+      <div class="n">Shortest-arc rotation</div>
+      <div class="d">The lamplighter's turn blends the short way around the 360° wrap.</div>
+      <div class="v" id="v-arc">heading 0.0°</div>
+    </div>
+    <div class="k" id="k-safe">
+      <div class="n">90% / 93% safe margins</div>
+      <div class="d">Narration held inside safe-title so a crop never eats it.</div>
+      <div class="v">SMPTE ST 2046-1</div>
+    </div>
+  </div>
+  <div class="log" id="log"></div>
+</details>
+
+<footer>
+  Models are generated in code — heightfield valley, faceted rocks, the lamplighter, the beacon —
+  then rendered by a hand-written pipeline: perspective projection, backface culling, depth sort,
+  flat directional shading, distance fog. Nothing is loaded from disk or network.
+</footer>
+
+<script>
+(function(){
+"use strict";
+const TAU = Math.PI*2, DUR = 26.0;
+
+/* ───────── deterministic hash noise (no Math.random: same valley every run) */
+function h2(x,y){ const s=Math.sin(x*127.1+y*311.7)*43758.5453; return s-Math.floor(s); }
+function noise(x,y){
+  const xi=Math.floor(x), yi=Math.floor(y), xf=x-xi, yf=y-yi;
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  return h2(xi,yi)*(1-u)*(1-v)+h2(xi+1,yi)*u*(1-v)+h2(xi,yi+1)*(1-u)*v+h2(xi+1,yi+1)*u*v;
+}
+
+/* ───────── mat4 */
+function mIdent(){return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];}
+function mMul(a,b){const o=new Array(16);
+  for(let r=0;r<4;r++)for(let c=0;c<4;c++){let s=0;
+    for(let k=0;k<4;k++)s+=a[r*4+k]*b[k*4+c]; o[r*4+c]=s;} return o;}
+function mTrans(x,y,z){const m=mIdent(); m[3]=x;m[7]=y;m[11]=z; return m;}
+function mScale(x,y,z){const m=mIdent(); m[0]=x;m[5]=y;m[10]=z; return m;}
+function mRotY(a){const c=Math.cos(a),s=Math.sin(a);
+  return [c,0,s,0, 0,1,0,0, -s,0,c,0, 0,0,0,1];}
+function mRotX(a){const c=Math.cos(a),s=Math.sin(a);
+  return [1,0,0,0, 0,c,-s,0, 0,s,c,0, 0,0,0,1];}
+function mRotZ(a){const c=Math.cos(a),s=Math.sin(a);
+  return [c,-s,0,0, s,c,0,0, 0,0,1,0, 0,0,0,1];}
+function xf(m,p){const [x,y,z]=p; return [
+  m[0]*x+m[1]*y+m[2]*z+m[3], m[4]*x+m[5]*y+m[6]*z+m[7], m[8]*x+m[9]*y+m[10]*z+m[11]];}
+function sub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];}
+function cross(a,b){return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];}
+function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+function norm(a){const l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l];}
+function lookAt(eye,tgt){
+  const z=norm(sub(eye,tgt)), x=norm(cross([0,1,0],z)), y=cross(z,x);
+  return [x[0],x[1],x[2],-dot(x,eye), y[0],y[1],y[2],-dot(y,eye),
+          z[0],z[1],z[2],-dot(z,eye), 0,0,0,1];
+}
+
+/* ───────── model builders (custom geometry, authored here) */
+function box(w,h,d,col,top){
+  const x=w/2,y=h/2,z=d/2;
+  const v=[[-x,-y,-z],[x,-y,-z],[x,y,-z],[-x,y,-z],[-x,-y,z],[x,-y,z],[x,y,z],[-x,y,z]];
+  const q=[[0,1,2,3],[5,4,7,6],[4,0,3,7],[1,5,6,2],[3,2,6,7],[4,5,1,0]];
+  const f=[]; q.forEach((s,i)=>{
+    const c = (i===4 && top) ? top : col;
+    f.push({i:[s[0],s[1],s[2]],c}); f.push({i:[s[0],s[2],s[3]],c});});
+  return {v,f};
+}
+function cyl(r,h,seg,col){
+  const v=[],f=[];
+  for(let i=0;i<seg;i++){const a=i/seg*TAU;
+    v.push([Math.cos(a)*r,-h/2,Math.sin(a)*r]); v.push([Math.cos(a)*r,h/2,Math.sin(a)*r]);}
+  const top=v.push([0,h/2,0])-1, bot=v.push([0,-h/2,0])-1;
+  for(let i=0;i<seg;i++){const a=i*2,b=((i+1)%seg)*2;
+    f.push({i:[a,b,b+1],c:col}); f.push({i:[a,b+1,a+1],c:col});
+    f.push({i:[a+1,b+1,top],c:col}); f.push({i:[b,a,bot],c:col});}
+  return {v,f};
+}
+/* tapered tower — the beacon */
+function tower(h,rb,rt,seg,col){
+  const v=[],f=[];
+  for(let i=0;i<seg;i++){const a=i/seg*TAU;
+    v.push([Math.cos(a)*rb,0,Math.sin(a)*rb]); v.push([Math.cos(a)*rt,h,Math.sin(a)*rt]);}
+  for(let i=0;i<seg;i++){const a=i*2,b=((i+1)%seg)*2;
+    f.push({i:[a,b,b+1],c:col}); f.push({i:[a,b+1,a+1],c:col});}
+  return {v,f};
+}
+/* faceted rock — deterministic per-seed displacement */
+function rock(seed,col){
+  const v=[],f=[],rings=3,seg=6;
+  v.push([0,1,0]);
+  for(let r=1;r<=rings;r++){const phi=r/(rings+1)*Math.PI;
+    for(let s=0;s<seg;s++){const th=s/seg*TAU;
+      const d=.62+.5*h2(seed+r*7.3, s*3.1);
+      v.push([Math.sin(phi)*Math.cos(th)*d, Math.cos(phi)*d*.85, Math.sin(phi)*Math.sin(th)*d]);}}
+  v.push([0,-.85,0]);
+  for(let s=0;s<seg;s++) f.push({i:[0,1+s,1+(s+1)%seg],c:col});
+  for(let r=0;r<rings-1;r++)for(let s=0;s<seg;s++){
+    const a=1+r*seg+s, b=1+r*seg+(s+1)%seg, c=a+seg, d=b+seg;
+    f.push({i:[a,c,d],c:col}); f.push({i:[a,d,b],c:col});}
+  const last=1+(rings-1)*seg, bi=v.length-1;
+  for(let s=0;s<seg;s++) f.push({i:[last+s,bi,last+(s+1)%seg],c:col});
+  return {v,f};
+}
+/* valley heightfield */
+function terrain(w,d,nx,nz,col){
+  const v=[],f=[];
+  for(let i=0;i<=nx;i++)for(let k=0;k<=nz;k++){
+    const x=(i/nx-.5)*w, z=(k/nz-.5)*d;
+    const ridge = Math.abs(z)*.055 + noise(x*.11,z*.11)*1.5 + noise(x*.31,z*.29)*.42;
+    const trough = Math.exp(-(z*z)/26)*1.35;      // carve the valley floor
+    v.push([x, ridge-trough-1.15, z]);}
+  const idx=(i,k)=>i*(nz+1)+k;
+  for(let i=0;i<nx;i++)for(let k=0;k<nz;k++){
+    f.push({i:[idx(i,k),idx(i+1,k),idx(i+1,k+1)],c:col});
+    f.push({i:[idx(i,k),idx(i+1,k+1),idx(i,k+1)],c:col});}
+  return {v,f};
+}
+
+const M = {
+  ground: terrain(90,54,34,22,[42,54,84]),
+  torso:  box(1.05,1.25,.72,[86,98,128],[104,118,150]),
+  head:   box(.72,.62,.66,[104,118,150],[124,140,172]),
+  visor:  box(.52,.16,.06,[255,179,71]),
+  limb:   box(.2,.86,.2,[62,74,102]),
+  arm:    box(.17,.72,.17,[72,84,112]),
+  lantern:box(.3,.36,.3,[255,179,71]),
+  post:   cyl(.06,.34,6,[52,62,88]),
+  tower:  tower(4.6,.92,.42,7,[44,56,84]),
+  bowl:   cyl(.78,.42,8,[58,70,100]),
+  rocks:  [rock(1.7,[40,50,76]),rock(5.2,[36,46,72]),rock(9.9,[44,54,80])],
+  peak:   rock(3.3,[26,34,56])
+};
+
+/* ───────── Catmull-Rom camera (KERNEL: one continuous spline, not per-segment lerp) */
+const CAM=[
+  {t:0,  p:[-24,10.5,27], g:[-7,2.2,0]},
+  {t:6,  p:[-17,5.4,17],  g:[-9,1.7,0]},
+  {t:12, p:[-7.4,4.6,11.5], g:[-1.5,2.5,0]},
+  {t:17, p:[-3.4,5.4,9.2],g:[0.2,3.2,0]},
+  {t:21, p:[2.4,6.2,13],  g:[0,3.1,0]},
+  {t:26, p:[7,13,29],     g:[-2,3,0]}
+];
+function crSeg(t){ let i=0; while(i<CAM.length-2 && t>=CAM[i+1].t) i++; return i; }
+function cr(p0,p1,p2,p3,u){
+  const u2=u*u,u3=u2*u;
+  return .5*((2*p1)+(-p0+p2)*u+(2*p0-5*p1+4*p2-p3)*u2+(-p0+3*p1-3*p2+p3)*u3);
+}
+function camAt(t){
+  const i=crSeg(t), a=CAM[i], b=CAM[i+1];
+  const u=Math.max(0,Math.min(1,(t-a.t)/(b.t-a.t)));
+  const P=CAM[Math.max(0,i-1)], Q=CAM[Math.min(CAM.length-1,i+2)];
+  const out={p:[],g:[],seg:i};
+  for(let k=0;k<3;k++){
+    out.p.push(cr(P.p[k],a.p[k],b.p[k],Q.p[k],u));
+    out.g.push(cr(P.g[k],a.g[k],b.g[k],Q.g[k],u));}
+  return out;
+}
+
+/* ───────── shortest-arc angle blend (KERNEL) */
+function shortArc(from,to,k){
+  const d=((to-from+Math.PI)%TAU+TAU)%TAU-Math.PI;
+  return from+d*k;
+}
+
+/* ───────── story: narration + markers */
+const LINES=[
+  {a:0.4,b:4.6, s:"The valley had been dark a long time."},
+  {a:5.2,b:9.6, s:"Long enough that no one remembered whose job the light was."},
+  {a:10.2,b:14.2,s:"So the lamplighter walked out to the old beacon alone."},
+  {a:14.8,b:17.4,s:"It carried one small flame, and it was not a brave machine."},
+  {a:18.4,b:22.2,s:"It gave the flame away anyway."},
+  {a:22.8,b:25.8,s:"The valley remembered how to burn."}
+];
+const LIGHT_AT=17.6;
+const MARKERS=[
+  {at:3.2,  id:"walk.begin",   label:"lamplighter starts walking"},
+  {at:LIGHT_AT, id:"beacon.ignite", label:"beacon ignites (authoritative cmd)"},
+  {at:22.0, id:"valley.warm",  label:"valley fill-light rises"}
+];
+
+/* robot state as a PURE FUNCTION of t (KERNEL) */
+function robotAt(t){
+  const WALK_A=3.2, WALK_B=14.0, X0=-16.5, X1=-2.35;
+  const k=Math.max(0,Math.min(1,(t-WALK_A)/(WALK_B-WALK_A)));
+  const ease=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+  const x=X0+(X1-X0)*ease;
+  const walking=t>WALK_A&&t<WALK_B;
+  /* walk cycle from ELAPSED TIME, not frame count (KERNEL) */
+  const ph=walking?Math.sin((t-WALK_A)*7.4):0;
+  /* turns to face the beacon near the end of the walk, via shortest arc */
+  const turnK=Math.max(0,Math.min(1,(t-13.2)/1.6));
+  const heading=shortArc(Math.PI/2, 0.28, turnK);
+  const reach=Math.max(0,Math.min(1,(t-15.6)/1.9))*(t<19?1:Math.max(0,1-(t-19)/1.4));
+  return {x,ph,heading,walking,reach,
+    bob: walking?Math.abs(Math.sin((t-WALK_A)*7.4))*.055:0};
+}
+
+/* ───────── renderer */
+const cv=document.getElementById("c"), ctx=cv.getContext("2d");
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  const r=cv.getBoundingClientRect();
+  W=Math.max(1,Math.round(r.width)); H=Math.max(1,Math.round(r.height));
+  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+new ResizeObserver(resize).observe(cv);
+
+const LIGHT=norm([-.42,.82,.38]);
+function draw(t){
+  const cam=camAt(t);
+  const V=lookAt(cam.p,cam.g);
+  const focal=H*1.16;
+  const lit=t>=LIGHT_AT;
+  const glow=lit?Math.min(1,(t-LIGHT_AT)/1.1):0;
+  const flash=lit?Math.exp(-(t-LIGHT_AT)*2.6):0;      // decays as f(t): scrub-safe
+  const warm=Math.max(0,Math.min(1,(t-22.0)/2.2));
+
+  /* sky */
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#070a14");
+  g.addColorStop(.62,`rgb(${17+warm*16},${23+warm*13},${44+warm*6})`);
+  g.addColorStop(1,`rgb(${26+glow*30},${32+glow*16},${52})`);
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  /* stars (deterministic) */
+  for(let i=0;i<90;i++){
+    const sx=h2(i,1)*W, sy=h2(i,2)*H*.55;
+    const tw=.3+.7*h2(i,3);
+    ctx.fillStyle=`rgba(232,228,217,${(tw*.5)*(1-warm*.6)})`;
+    ctx.fillRect(sx,sy,1.2,1.2);
+  }
+
+  /* collect faces */
+  const tris=[];
+  function emit(model,mat,opts){
+    const o=opts||{};
+    const wv=model.v.map(p=>xf(mat,p));
+    const vv=wv.map(p=>xf(V,p));
+    for(const f of model.f){
+      const [ia,ib,ic]=f.i;
+      const A=vv[ia],B=vv[ib],C=vv[ic];
+      if(A[2]>-.35&&B[2]>-.35&&C[2]>-.35) continue;      // near-plane reject
+      const n=cross(sub(B,A),sub(C,A));
+      if(dot(n,A)>0) continue;                            // backface cull
+      const wn=norm(cross(sub(wv[ib],wv[ia]),sub(wv[ic],wv[ia])));
+      let d=Math.max(0,dot(wn,LIGHT));
+      let [r,gg,b]=f.c;
+      let amb=.36+warm*.13;
+      let sh=amb+d*.82;
+      /* the beacon throws its own warm light once lit */
+      if(o.emissive){
+        const e=o.emissive*(0.55+0.45*glow);
+        r=255; gg=179+ (76*glow|0); b=71;
+        sh=Math.max(sh,.85+e*.15);
+      } else if(glow>0 && o.nearBeacon){
+        const bl=glow*o.nearBeacon;
+        r+=bl*120; gg+=bl*70; b+=bl*10;
+      }
+      r=Math.min(255,r*sh); gg=Math.min(255,gg*sh); b=Math.min(255,b*sh);
+      /* distance fog */
+      const z=-(A[2]+B[2]+C[2])/3;
+      const fog=Math.max(0,Math.min(.9,(z-16)/48));
+      r=r+(19-r)*fog; gg=gg+(26-gg)*fog; b=b+(46-b)*fog;
+      /* project */
+      const pj=p=>[W/2+p[0]*focal/-p[2], H/2-p[1]*focal/-p[2]];
+      tris.push({z:(A[2]+B[2]+C[2])/3, pts:[pj(A),pj(B),pj(C)],
+        col:`rgb(${r|0},${gg|0},${b|0})`});
+    }
+  }
+
+  /* ---- scene assembly ---- */
+  emit(M.ground,mIdent(),{nearBeacon:.35});
+  /* distant peaks */
+  [[-30,-19,5.5],[16,-22,7],[-6,-25,6]].forEach((q,i)=>
+    emit(M.peak,mMul(mTrans(q[0],q[2]*.24,q[1]),mScale(q[2],q[2]*1.5,q[2])),{}));
+  /* rocks along the floor */
+  [[-12.5,2.4,.9],[-8,-2.6,.62],[4.6,2.9,1.05],[-19,1.6,.8],[9,-3.1,.7]]
+    .forEach((q,i)=>{
+      const m=M.rocks[i%M.rocks.length];
+      emit(m,mMul(mMul(mTrans(q[0],-1.0,q[1]),mRotY(i*1.3)),mScale(q[2],q[2]*.8,q[2])),
+        {nearBeacon:.5});
+    });
+
+  /* beacon */
+  emit(M.tower,mTrans(0,-1.15,0),{nearBeacon:.9});
+  emit(M.bowl,mTrans(0,3.66,0),{nearBeacon:1});
+  if(lit) emit(M.bowl,mMul(mTrans(0,3.95,0),mScale(.72,.55,.72)),{emissive:1});
+
+  /* lamplighter — every part a pure function of t */
+  const R=robotAt(t);
+  const root=mMul(mTrans(R.x,-.34+R.bob,.6),mRotY(R.heading));
+  emit(M.torso,mMul(root,mTrans(0,1.02,0)),{nearBeacon:.7});
+  emit(M.head, mMul(root,mTrans(0,1.86,0)),{nearBeacon:.7});
+  emit(M.visor,mMul(root,mTrans(0,1.88,.34)),{emissive:.5});
+  /* legs swing (walk cycle from elapsed time) */
+  [-1,1].forEach(s=>{
+    const sw=R.ph*s*.5;
+    emit(M.limb,mMul(mMul(root,mTrans(s*.27,.44,0)),mRotX(sw)),{nearBeacon:.6});
+  });
+  /* arms: one counter-swings, one lifts the lantern on the reach */
+  emit(M.arm,mMul(mMul(root,mTrans(-.66,1.08,0)),mRotX(-R.ph*.42)),{nearBeacon:.6});
+  const lift=-R.reach*1.15;
+  emit(M.arm,mMul(mMul(root,mTrans(.66,1.08,0)),mRotX(lift)),{nearBeacon:.6});
+  const lx=.66+Math.sin(-lift)*.0, ly=1.08-.42*Math.cos(lift), lz=-Math.sin(lift)*.52;
+  emit(M.lantern,mMul(root,mTrans(lx,ly+R.reach*.5,lz)),{emissive:t<LIGHT_AT?1:.35});
+
+  /* ---- painter's sort: farthest (most negative z) first ---- */
+  tris.sort((a,b)=>a.z-b.z);
+  for(const tr of tris){
+    ctx.fillStyle=tr.col;
+    ctx.beginPath();
+    ctx.moveTo(tr.pts[0][0],tr.pts[0][1]);
+    ctx.lineTo(tr.pts[1][0],tr.pts[1][1]);
+    ctx.lineTo(tr.pts[2][0],tr.pts[2][1]);
+    ctx.closePath(); ctx.fill();
+  }
+
+  /* beacon bloom in screen space */
+  if(lit){
+    const bp=xf(V,[0,3.95,0]);
+    if(bp[2]<-.4){
+      const sx=W/2+bp[0]*focal/-bp[2], sy=H/2-bp[1]*focal/-bp[2];
+      const rad=(70+flash*260)*(focal/900);
+      const bg=ctx.createRadialGradient(sx,sy,0,sx,sy,Math.max(8,rad));
+      bg.addColorStop(0,`rgba(255,214,140,${.55*glow+flash*.4})`);
+      bg.addColorStop(.4,`rgba(255,179,71,${.22*glow})`);
+      bg.addColorStop(1,"rgba(255,179,71,0)");
+      ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    }
+  }
+  /* vignette */
+  const vg=ctx.createRadialGradient(W/2,H/2,H*.34,W/2,H/2,H*1.05);
+  vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,.62)");
+  ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+  return cam;
+}
+
+/* ───────── director: clock, monotonic marker pointer, transport */
+let t=0, playing=true, last=0, capHits=0, nextMarker=0, fired=[];
+const el={play:document.getElementById("play"),skip:document.getElementById("skip"),
+  scrub:document.getElementById("scrub"),clock:document.getElementById("clock"),
+  narr:document.getElementById("narr"),card:document.getElementById("card"),
+  log:document.getElementById("log"),vPure:document.getElementById("v-pure"),
+  vSpline:document.getElementById("v-spline"),vPtr:document.getElementById("v-ptr"),
+  vDt:document.getElementById("v-dt"),vArc:document.getElementById("v-arc"),
+  kPtr:document.getElementById("k-ptr"),kDt:document.getElementById("k-dt")};
+
+function logLine(s){
+  const d=document.createElement("div"); d.innerHTML=s;
+  el.log.appendChild(d); el.log.scrollTop=el.log.scrollHeight;
+}
+/* KERNEL: re-resolve the pointer by scan on seek — purity gives direct
+   evaluation, NOT a free O(1) lookup, so locating the beat is explicit. */
+function resolvePointer(time){
+  let i=0, steps=0;
+  while(i<MARKERS.length && MARKERS[i].at<=time+1e-9){ i++; steps++; }
+  nextMarker=i;
+  return steps;
+}
+/* KERNEL: consume an index; a marker can never fire twice */
+function dispatch(time){
+  while(nextMarker<MARKERS.length && MARKERS[nextMarker].at<=time+1e-9){
+    const m=MARKERS[nextMarker];
+    fired.push(m.id);
+    logLine(`<b>${m.at.toFixed(2)}s</b> → ${m.id} · ${m.label}`);
+    nextMarker++;
+  }
+}
+function seek(time,why){
+  t=Math.max(0,Math.min(DUR,time));
+  const steps=resolvePointer(t);
+  logLine(`<b>seek</b> ${t.toFixed(2)}s (${why}) · pointer re-resolved in ${steps} scan step${steps===1?"":"s"} → next ${nextMarker}/${MARKERS.length}`);
+}
+
+el.play.addEventListener("click",()=>{
+  playing=!playing; el.play.textContent=playing?"Pause":"Play";
+  if(playing) last=performance.now();
+});
+/* KERNEL: skip is checked BEFORE any input lock — never gated by the debounce */
+el.skip.addEventListener("click",()=>{
+  seek(DUR-0.05,"skip — carve-out, not gated by input lock");
+  dispatch(t);   // fire every remaining marker in order, exactly once
+});
+el.scrub.addEventListener("input",()=>{
+  seek(parseInt(el.scrub.value,10)/100,"scrub");
+  if(!playing) frame(performance.now(),true);
+});
+
+function frame(now,forced){
+  if(!forced) requestAnimationFrame(frame);
+  let dt=(now-last)/1000; last=now;
+  if(!isFinite(dt)||dt<0) dt=0;
+  /* KERNEL: cap dt so a stall/tab-switch can't jump the clock past a marker */
+  const CAP=1/20;
+  if(dt>CAP){ dt=CAP; capHits++; el.kDt.classList.add("live"); }
+  else el.kDt.classList.remove("live");
+
+  if(playing&&!forced){
+    t+=dt;
+    if(t>=DUR){ t=DUR; playing=false; el.play.textContent="Play"; }
+    dispatch(t);
+  }
+
+  const cam=draw(t);
+  const R=robotAt(t);
+
+  /* narration — pure f(t), inside the safe-title band */
+  const line=LINES.find(l=>t>=l.a&&t<l.b);
+  if(line){ el.narr.textContent=line.s; el.narr.classList.add("on"); }
+  else el.narr.classList.remove("on");
+  el.card.classList.toggle("on",t<2.0);
+
+  /* telemetry */
+  el.scrub.value=Math.round(t*100);
+  el.clock.textContent=`${t.toFixed(2)} / ${DUR.toFixed(2)}`;
+  el.vPure.textContent=`t = ${t.toFixed(3)}s`;
+  const spd=Math.hypot(cam.p[0]-camAt(Math.max(0,t-.05)).p[0],
+                       cam.p[1]-camAt(Math.max(0,t-.05)).p[1],
+                       cam.p[2]-camAt(Math.max(0,t-.05)).p[2])/.05;
+  el.vSpline.textContent=`segment ${cam.seg} · |v| ${spd.toFixed(2)} u/s`;
+  el.vPtr.textContent=`next ${nextMarker}/${MARKERS.length} · fired ${fired.length}`;
+  el.kPtr.classList.toggle("live",fired.length>0&&nextMarker<MARKERS.length);
+  el.vDt.textContent=`dt ${(dt*1000).toFixed(1)}ms · caps ${capHits}`;
+  el.vArc.textContent=`heading ${(R.heading*180/Math.PI).toFixed(1)}°`;
+}
+
+resize();
+logLine("<b>0.00s</b> → director start · cosmetic tracks are pure f(t), markers dispatch by pointer");
+last=performance.now();
+requestAnimationFrame(frame);
+})();
+</script>
