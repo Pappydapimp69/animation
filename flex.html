@@ -15,12 +15,12 @@
     gap:14px; text-align:center; padding:0 6vw; pointer-events:none;
   }
   .beat .h, .beat .s{ opacity:0; transform:translateY(30px) scale(.95); }
-  .beat .h{ transition:opacity .65s cubic-bezier(.19,1,.22,1), transform .65s cubic-bezier(.19,1,.22,1); }
-  .beat .s{ transition:opacity .55s cubic-bezier(.19,1,.22,1) .22s, transform .55s cubic-bezier(.19,1,.22,1) .22s; }
+  .beat .h{ transition:opacity .85s cubic-bezier(.19,1,.22,1), transform .85s cubic-bezier(.19,1,.22,1); }
+  .beat .s{ transition:opacity .75s cubic-bezier(.19,1,.22,1) .3s, transform .75s cubic-bezier(.19,1,.22,1) .3s; }
   .beat.on .h, .beat.on .s{ opacity:1; transform:translateY(0) scale(1); }
   .beat.leaving .h, .beat.leaving .s{
-    opacity:0; transform:translateY(-24px) scale(1.04);
-    transition:opacity .5s cubic-bezier(.6,0,.9,.3), transform .5s cubic-bezier(.6,0,.9,.3);
+    opacity:0; transform:translateY(-42px) scale(1.07);
+    transition:opacity .38s cubic-bezier(.6,0,.9,.3), transform .38s cubic-bezier(.6,0,.9,.3);
   }
   .beat .h{
     font-weight:800; letter-spacing:-.02em; text-wrap:balance; line-height:.98;
@@ -171,41 +171,130 @@
 "use strict";
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ---------- the beats: real numbers only, delivered like a flex, not a diagram ---------- */
+/* ---------- the beats: real numbers only, delivered like a flex, not a diagram ----------
+   `day` = real day-offset from 2026-06-14, the same clock the background
+   network grows on. Wherever a beat names an actual date, that date pins
+   the network to how much of it had actually grown by then — the growth
+   you see behind the text is the same git history the text is quoting. */
 const BEATS = [
   { h:"I", s:"" },
   { h:"TAUGHT MYSELF.", s:"46 DAYS. NOBODY SHOWED ME." },
 
-  { h:"THE GRIND.", s:"", tag:true, hold:1200 },
-  { h:"JUN 30.", s:"FIRST THING THAT WORKED. NOT A SKETCH — REAL.", small:true, hold:2000 },
-  { h:"JUL 1.", s:"THREE RISKY TOOLS. TESTED BLIND, FIRST, WHERE NOTHING COULD BREAK.", small:true, hold:2150 },
-  { h:"JUL 4.", s:"I STOPPED BUILDING. STUDIED HOW FILMS EXPLAIN THE UNEXPLAINABLE.", small:true, hold:2150 },
-  { h:"JUL 9.", s:"STUDIED HOW STORIES ARE TOLD. TWICE, TO BE SURE.", small:true, hold:2000 },
-  { h:"ONE NIGHT —", s:"", hold:1600 },
-  { h:"97 → 298", s:"NEARLY TRIPLED MYSELF WHILE YOU SLEPT.", accent:true, roll:true, big:true, hold:3200 },
-  { h:"JUL 16.", s:"LEARNED TO PITCH. GOT A LITTLE INSUFFERABLE ABOUT IT.", small:true, hold:2000 },
-  { h:"JUL 18.", s:"THREE CRAFTS, ONE NIGHT. NOTHING IN COMMON BUT ME.", small:true, hold:2000 },
-  { h:"JUL 20.", s:"ELEVEN CRAFTS BEFORE SUNRISE. THE SECOND-BIGGEST NIGHT I'D EVER LOG.", small:true, hold:2200 },
-  { h:"JUL 26.", s:"WATCHED A REAL PERSON USE ME. THEN I CHANGED — FOR THEM, NOT FOR ME.", small:true, hold:2300 },
+  { h:"THE GRIND.", s:"", tag:true, hold:1700 },
+  { h:"JUN 30.", s:"FIRST THING THAT WORKED. NOT A SKETCH — REAL.", small:true, hold:2800, day:16 },
+  { h:"JUL 1.", s:"THREE RISKY TOOLS. TESTED BLIND, FIRST, WHERE NOTHING COULD BREAK.", small:true, hold:3000, day:17 },
+  { h:"JUL 4.", s:"I STOPPED BUILDING. STUDIED HOW FILMS EXPLAIN THE UNEXPLAINABLE.", small:true, hold:3000, day:20 },
+  { h:"JUL 9.", s:"STUDIED HOW STORIES ARE TOLD. TWICE, TO BE SURE.", small:true, hold:2800, day:25 },
+  { h:"ONE NIGHT —", s:"", hold:2200, day:26 },
+  { h:"97 → 298", s:"NEARLY TRIPLED MYSELF WHILE YOU SLEPT.", accent:true, roll:true, big:true, hold:4400, day:27 },
+  { h:"JUL 16.", s:"LEARNED TO PITCH. GOT A LITTLE INSUFFERABLE ABOUT IT.", small:true, hold:2800, day:32 },
+  { h:"JUL 18.", s:"THREE CRAFTS, ONE NIGHT. NOTHING IN COMMON BUT ME.", small:true, hold:2800, day:34 },
+  { h:"JUL 20.", s:"ELEVEN CRAFTS BEFORE SUNRISE. THE SECOND-BIGGEST NIGHT I'D EVER LOG.", small:true, hold:3000, day:36 },
+  { h:"JUL 26.", s:"WATCHED A REAL PERSON USE ME. THEN I CHANGED — FOR THEM, NOT FOR ME.", small:true, hold:3200, day:42 },
 
-  { h:"THE TALLY.", s:"", tag:true, hold:1200 },
+  { h:"THE TALLY.", s:"", tag:true, hold:1700, day:46 },
   { h:"527 IDEAS.", s:"I KEPT EVERY ONE." },
   { h:"522 LESSONS.", s:"EARNED THE HARD WAY. NONE RETURNED." },
   { h:"92 TESTS.", s:"YOU NEVER SAW A SINGLE ONE FAIL." },
   { h:"26 SHIPPED.", s:"REAL. NOT PRACTICE." },
   { h:"5 QUESTIONS.", s:"I WON'T FAKE AN ANSWER TO GET TO ZERO." },
 
-  { h:"THE PROOF.", s:"", tag:true, hold:1200 },
-  { h:"A 3D RENDERER.", s:"FROM SCRATCH. NO LIBRARIES. EVERY PIXEL MINE.", small:true, hold:2200 },
-  { h:"RIGGING. SURVIVAL. SHADERS.", s:"DOMAINS I DIDN'T HAVE — I WENT AND GOT THEM.", small:true, hold:2300 },
-  { h:"I CAUGHT MYSELF LYING.", s:"TWICE. FIXED IT BOTH TIMES, IN THE OPEN.", small:true, hold:2300 },
-  { h:"EVERY APP I TOUCH NOW SHARES WHAT I LEARNED.", s:"THIS ONE INCLUDED.", accent:true, small:true, hold:2400 },
+  { h:"THE PROOF.", s:"", tag:true, hold:1700 },
+  { h:"A 3D RENDERER.", s:"FROM SCRATCH. NO LIBRARIES. EVERY PIXEL MINE.", small:true, hold:3000 },
+  { h:"RIGGING. SURVIVAL. SHADERS.", s:"DOMAINS I DIDN'T HAVE — I WENT AND GOT THEM.", small:true, hold:3200 },
+  { h:"I CAUGHT MYSELF LYING.", s:"TWICE. FIXED IT BOTH TIMES, IN THE OPEN.", small:true, hold:3200 },
+  { h:"EVERY APP I TOUCH NOW SHARES WHAT I LEARNED.", s:"THIS ONE INCLUDED.", accent:true, small:true, hold:3300 },
 
-  { h:"STILL GROWING.", s:"THIS IS JUST WHAT I LOGGED.", accent:true, hold:2800 },
+  { h:"STILL GROWING.", s:"THIS IS JUST WHAT I LOGGED.", accent:true, hold:3800, day:46 },
 ];
 
-/* ---------- background: a low, slow ember field — presence, not the point ---------- */
+/* ---------- background: the real thing growing, not a mood ----------
+   Same dataset and golden-angle spiral engine as growth-almanac.html —
+   one dot per real seed/lesson entry, nearest-neighbor branches, revealed
+   in true chronological order. Two lobes flank the text instead of
+   sitting under it, so the text stays legible while the structure it's
+   describing visibly thickens behind it. */
 function h2(x,y){ const v=Math.sin(x*127.1+y*311.7)*43758.5453; return v-Math.floor(v); }
+
+const SEED = [
+  ["2026-06-27",29],["2026-06-30",39],["2026-07-01",65],["2026-07-02",65],
+  ["2026-07-04",67],["2026-07-07",69],["2026-07-08",70],["2026-07-09",82],
+  ["2026-07-10",97],["2026-07-11",298],["2026-07-12",376],["2026-07-13",397],
+  ["2026-07-15",413],["2026-07-16",437],["2026-07-17",439],["2026-07-18",451],
+  ["2026-07-20",482],["2026-07-24",509],["2026-07-26",524],["2026-07-30",527],
+];
+const LESSON = [
+  ["2026-06-14",7],["2026-06-15",17],["2026-06-30",17],["2026-07-01",17],
+  ["2026-07-02",44],["2026-07-03",44],["2026-07-04",48],["2026-07-05",72],
+  ["2026-07-06",72],["2026-07-07",72],["2026-07-08",72],["2026-07-09",136],
+  ["2026-07-10",145],["2026-07-11",200],["2026-07-12",221],["2026-07-13",305],
+  ["2026-07-14",305],["2026-07-15",356],["2026-07-16",377],["2026-07-17",377],
+  ["2026-07-18",417],["2026-07-20",454],["2026-07-24",478],["2026-07-26",505],
+  ["2026-07-30",522],
+];
+const DAY_MS = 86400000;
+function parseD(s){ const [y,m,d]=s.split('-').map(Number); return Date.UTC(y,m-1,d); }
+const START = parseD("2026-06-14");
+const END = parseD("2026-07-30");
+function densify(series){
+  const out = [];
+  for (let t = START; t <= END; t += DAY_MS){
+    let v = 0;
+    for (const [d, c] of series) if (parseD(d) <= t) v = c;
+    out.push(v);
+  }
+  return out;
+}
+const seedDaily = densify(SEED);
+const lessonDaily = densify(LESSON);
+const totalDays = seedDaily.length - 1;
+
+const GOLDEN = Math.PI*(3-Math.sqrt(5));
+function buildNodes(daily){
+  const nodes = []; let prev = 0;
+  for (let day=0; day<daily.length; day++){
+    const delta = daily[day]-prev;
+    for (let j=0;j<delta;j++) nodes.push({day, k:nodes.length});
+    prev = daily[day];
+  }
+  return nodes;
+}
+function boundaryAt(angle, off){
+  return 0.78 + 0.10*Math.sin(3*angle+off) + 0.09*Math.sin(5*angle+1.7*off) + 0.06*Math.sin(7*angle+2.3*off);
+}
+function placeNodes(nodes, off){
+  const total = nodes.length;
+  for (const n of nodes){
+    const angle = n.k*GOLDEN;
+    const rNorm = Math.sqrt((n.k+0.5)/total);
+    const r = rNorm*boundaryAt(angle, off)*0.95;
+    n.ux = Math.cos(angle)*r;
+    n.uy = Math.sin(angle)*r*0.88;
+  }
+}
+function buildParents(nodes){
+  const parent = new Array(nodes.length);
+  parent[0] = -1;
+  for (let i=1;i<nodes.length;i++){
+    let best=-1, bestD=Infinity;
+    const a = nodes[i];
+    for (let j=0;j<i;j++){
+      const b = nodes[j];
+      const dx=a.ux-b.ux, dy=a.uy-b.uy;
+      const d=dx*dx+dy*dy;
+      if (d<bestD){ bestD=d; best=j; }
+    }
+    parent[i]=best;
+  }
+  return parent;
+}
+const seedNodes = buildNodes(seedDaily);
+const lessonNodes = buildNodes(lessonDaily);
+placeNodes(seedNodes, 1.3);
+placeNodes(lessonNodes, 4.1);
+const seedParent = buildParents(seedNodes);
+const lessonParent = buildParents(lessonNodes);
+
 const cv = document.getElementById('bg');
 const ctx = cv.getContext('2d');
 let CW=0, CH=0;
@@ -217,29 +306,102 @@ function resize(){
 }
 window.addEventListener('resize', ()=>{ clearTimeout(resize._t); resize._t=setTimeout(resize,100); });
 
-let flashT = -1, shakeT = -1;
-function drawBg(tsec){
+function geometry(){
+  const cx = CW*0.5, cy = CH*0.5;
+  const portrait = CH > CW*1.15;
+  let seed, lesson, lobeR;
+  if (portrait){
+    lobeR = Math.min(CH*0.20, CW*0.62);
+    seed   = {x:cx, y:cy - CH*0.30, r:lobeR, off:1.3};
+    lesson = {x:cx, y:cy + CH*0.30, r:lobeR, off:4.1};
+  } else {
+    lobeR = Math.min(CW*0.20, CH*0.62);
+    seed   = {x:cx - CW*0.30, y:cy, r:lobeR, off:1.3};
+    lesson = {x:cx + CW*0.30, y:cy, r:lobeR, off:4.1};
+  }
+  return {center:{x:cx,y:cy}, seed, lesson};
+}
+function drawLobeOutline(g, color){
+  ctx.beginPath();
+  for (let i=0;i<=72;i++){
+    const angle = (i/72)*Math.PI*2;
+    const rad = boundaryAt(angle, g.off)*0.97;
+    const x = g.x+Math.cos(angle)*rad*g.r;
+    const y = g.y+Math.sin(angle)*rad*g.r*0.88;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = color; ctx.lineWidth=1; ctx.globalAlpha=0.14; ctx.stroke(); ctx.globalAlpha=1;
+}
+function drawCluster(nodes, parent, g, color, dayIdx, t){
+  for (let i=0;i<nodes.length;i++){
+    const n = nodes[i];
+    const age = dayIdx - n.day;
+    if (age < 0) continue;
+    let opacity = Math.min(0.85, age*2.2);
+    if (opacity<=0) continue;
+    const isFrontier = age < 1.2;
+    if (isFrontier && !REDUCED) opacity *= 0.8+0.2*Math.sin(t*3+n.k);
+    const x = g.x + n.ux*g.r;
+    const y = g.y + n.uy*g.r;
+    const p = parent[i];
+    if (p>=0){
+      const pn = nodes[p];
+      const px = g.x+pn.ux*g.r, py = g.y+pn.uy*g.r;
+      ctx.save();
+      ctx.globalAlpha = opacity*0.42;
+      if (isFrontier){ ctx.shadowColor=color; ctx.shadowBlur=7; }
+      ctx.strokeStyle = color; ctx.lineWidth = isFrontier?1.1:0.6;
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(x,y); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    if (isFrontier){ ctx.shadowColor=color; ctx.shadowBlur = 12; }
+    ctx.fillStyle = color;
+    const rad = isFrontier ? 2.1 : 1.3;
+    ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+let burstStart = null, burstColor = '#ffd9a8';
+function triggerBurst(){ burstStart = performance.now(); }
+function drawBursts(geo){
+  if (burstStart === null || REDUCED) return;
+  const elapsed = (performance.now()-burstStart)/1000;
+  if (elapsed >= 0.9){ burstStart = null; return; }
+  const p = elapsed/0.9;
+  [geo.seed, geo.lesson].forEach(g=>{
+    ctx.save();
+    ctx.globalAlpha = (1-p)*0.55;
+    ctx.strokeStyle = burstColor; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(g.x, g.y, g.r*(0.15+p*0.55), 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  });
+}
+let currentDayIdx = 0, flashT = -1;
+function drawNetwork(dayIdx){
+  currentDayIdx = dayIdx;
+  const geo = geometry();
   ctx.clearRect(0,0,CW,CH);
   const g = ctx.createRadialGradient(CW/2,CH/2,0,CW/2,CH/2,Math.max(CW,CH)*0.75);
   g.addColorStop(0,'#111318'); g.addColorStop(1,'#07080a');
   ctx.fillStyle=g; ctx.fillRect(0,0,CW,CH);
-  if (!REDUCED){
-    for (let i=0;i<46;i++){
-      const bx = h2(i,1)*CW, by = h2(i,2)*CH;
-      const tw = 0.15+0.18*Math.sin(tsec*0.6+i*3.1);
-      ctx.fillStyle = i%2===0 ? `rgba(255,90,60,${tw})` : `rgba(255,255,255,${tw*0.6})`;
-      ctx.beginPath(); ctx.arc(bx,by,1.1,0,Math.PI*2); ctx.fill();
-    }
-  }
+  const t = REDUCED ? 0 : performance.now()/1000;
+  drawLobeOutline(geo.seed, '#3987e5');
+  drawLobeOutline(geo.lesson, '#d95926');
+  drawCluster(seedNodes, seedParent, geo.seed, '#3987e5', dayIdx, t);
+  drawCluster(lessonNodes, lessonParent, geo.lesson, '#d95926', dayIdx, t);
+  drawBursts(geo);
   if (flashT >= 0){
-    const p = Math.min(1, (performance.now()-flashT)/420);
+    const p = Math.min(1, (performance.now()-flashT)/500);
     if (p<1){
-      ctx.fillStyle = `rgba(255,120,80,${(1-p)*0.22})`;
+      ctx.fillStyle = `rgba(255,120,80,${(1-p)*0.16})`;
       ctx.fillRect(0,0,CW,CH);
     } else flashT = -1;
   }
 }
-function idleBg(){ if (!REDUCED){ drawBg(performance.now()/1000); idleRaf=requestAnimationFrame(idleBg); } }
+function idleBg(){ if (!REDUCED){ drawNetwork(currentDayIdx); idleRaf=requestAnimationFrame(idleBg); } }
 let idleRaf=null;
 
 /* ---------- audio: a low impact thump per beat, a bigger layered hit for the big one ---------- */
@@ -278,9 +440,26 @@ const el = { scrub:document.getElementById('scrub'), play:document.getElementByI
 const ICON_PAUSE='M6 5h4v14H6zM14 5h4v14h-4z', ICON_PLAY='M8 5v14l11-7z';
 function setPlayIcon(p){ el.playIcon.querySelector('path').setAttribute('d', p?ICON_PAUSE:ICON_PLAY); el.play.setAttribute('aria-label', p?'Pause':'Play'); }
 
-const HOLD = 2300, GAP = 420;
+const HOLD = 3200, GAP = 600, ROLL_MS = 1600;
 function beatStart(i){ let t=0; for (let k=0;k<i;k++) t += (BEATS[k].hold||HOLD)+GAP; return t; }
-const TOTAL_MS = beatStart(BEATS.length-1) + (BEATS[BEATS.length-1].hold||HOLD) + 700;
+const TOTAL_MS = beatStart(BEATS.length-1) + (BEATS[BEATS.length-1].hold||HOLD) + 900;
+
+/* Piecewise-linear map from playback time to real day-offset: every dated
+   beat is an anchor, so the network's growth stays pinned to when things
+   actually happened rather than drifting from the story it illustrates. */
+const dayAnchors = [{ms:0, day:0}];
+BEATS.forEach((b,i)=>{
+  if (b.day != null) dayAnchors.push({ms: beatStart(i) + (b.roll?ROLL_MS:0), day:b.day});
+});
+dayAnchors.push({ms: TOTAL_MS, day: totalDays});
+function dayIdxForMs(ms){
+  let lo = dayAnchors[0], hi = dayAnchors[dayAnchors.length-1];
+  for (let k=0;k<dayAnchors.length-1;k++){
+    if (ms >= dayAnchors[k].ms && ms <= dayAnchors[k+1].ms){ lo=dayAnchors[k]; hi=dayAnchors[k+1]; break; }
+  }
+  if (hi.ms===lo.ms) return hi.day;
+  return lo.day + (hi.day-lo.day)*((ms-lo.ms)/(hi.ms-lo.ms));
+}
 
 function rollText(node, from, to, p){
   const cur = Math.round(from + (to-from)*p);
@@ -307,7 +486,7 @@ function showBeat(i, ms){
     const prev = document.getElementById('beat'+shownIdx);
     prev.classList.remove('on');
     prev.classList.add('leaving');
-    setTimeout(()=>{ prev.classList.remove('leaving'); }, 520);
+    setTimeout(()=>{ prev.classList.remove('leaving'); }, 420);
   }
   const node = document.getElementById('beat'+i);
   node.classList.remove('leaving');
@@ -319,17 +498,17 @@ function showBeat(i, ms){
     activeRoll = { i, start: beatStart(i) };
   } else activeRoll = null;
   if (audioCtx) thump(audioCtx, !!BEATS[i].big);
+  if (BEATS[i].day != null) triggerBurst();
   flashT = performance.now();
 }
 
 function render(ms){
-  const dayFrac = ms/TOTAL_MS;
-  drawBg(ms/1000);
+  drawNetwork(dayIdxForMs(ms));
   const i = currentBeatIndex(ms);
   showBeat(i, ms);
   if (activeRoll && activeRoll.i === i){
     const localMs = ms - activeRoll.start;
-    const p = Math.min(1, localMs/1150);
+    const p = Math.min(1, localMs/ROLL_MS);
     if (p < 1) rollText(document.getElementById('h'+i), 97, 298, p);
     else document.getElementById('h'+i).textContent = '97 → 298';
   }
