@@ -101,6 +101,7 @@ function buildPile(items, seedOffset){
     it.unitY = heights[b] + unitH/2;
     it.unitH = unitH;
     it.jx = (h2(it.i, seedOffset+5.3)-0.5)*0.7; // sub-bucket jitter so a bucket isn't a single vertical column
+    it.sprout = h2(it.i, seedOffset+9.7) < 0.42; // a seed does something: germinate, or don't
     heights[b] += unitH;
   }
   let maxH = 0; for (const h of heights) if (h>maxH) maxH=h;
@@ -275,6 +276,20 @@ function drawPile(items, pileInfo, groundY, unitsToPx, kind, elapsedMs){
     let sc = 1;
     if (settleT < 160){ const p=settleT/160; sc = 1 + Math.sin(p*Math.PI)*0.22*(1-p); }
     if (kind==='seed') drawSeed(bx,finalY,sc,0.98); else drawStone(bx,finalY,sc,it.i,0.98);
+    if (kind==='seed' && it.sprout){
+      const grow = Math.min(1, Math.max(0,(settleT-260))/520);
+      if (grow > 0){
+        ctx.save();
+        ctx.strokeStyle = '#5fae52'; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.moveTo(bx,finalY-1); ctx.lineTo(bx, finalY-2-grow*10); ctx.stroke();
+        if (grow > 0.35){
+          ctx.fillStyle = '#6cc25a';
+          ctx.beginPath(); ctx.ellipse(bx+1.5, finalY-3-grow*7.5, 2*grow, 1*grow, -0.6, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(bx-1.5, finalY-2-grow*5.5, 1.6*grow, 0.8*grow, 0.6, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
     if (settleT < 220 && !REDUCED){
       const p = settleT/220;
       ctx.save();
