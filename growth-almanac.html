@@ -587,6 +587,11 @@ function setPlayIcon(isPlaying){
 
 let playing = false, dayIndex = 0, raf = null, lastT = 0, punch = 0, idleRaf = null;
 let activePunchWindow = null;
+// Bumped by startPlay() so an in-flight playReducedSequence's pending
+// setTimeouts recognize they're stale and stop touching shared state —
+// otherwise a reduced-motion viewer clicking Play mid-sequence would run
+// the animated path and the step-through sequence at once.
+let sequenceGen = 0;
 
 function fmtDay(idx){
   const t = START + Math.floor(idx)*DAY_MS;
@@ -613,14 +618,15 @@ function render(){
 }
 function stopPlay(){ playing=false; setPlayIcon(false); if(raf) cancelAnimationFrame(raf); }
 
-// Shared by both the animated playthrough (guarded by `playing`, so a Pause
-// or a re-Play cancels it cleanly) and the prefers-reduced-motion path
-// (unguarded — that path never sets `playing`, and the closing numbers are
-// the ONLY place this story's ending is expressed, so reduced motion must
-// still reveal them, just without the camera work leading up to it).
+// Shared by the animated playthrough (opts.alive checks `playing`, so a
+// Pause or a re-Play cancels it cleanly), the prefers-reduced-motion
+// step-through (opts.alive checks its own generation token, since that
+// path never sets `playing`), and — either way — the closing numbers are
+// the ONLY place this story's ending is expressed, so every path must
+// still reach them, just without the camera work leading up to it.
 function playClosing(opts){
   opts = opts || {};
-  const alive = () => (opts.checkPlaying ? playing : true);
+  const alive = opts.alive || (() => (opts.checkPlaying ? playing : true));
   let ci = 0;
   function nextClose(){
     if (!alive()) return;
@@ -651,6 +657,7 @@ const milestoneStops = MILESTONES
   .sort((a,b) => a.idx - b.idx);
 
 function startPlay(){
+  sequenceGen++;
   stopIdle();
   playing = true; setPlayIcon(true);
   el.line.classList.remove('on'); el.closer.classList.remove('on');
@@ -720,11 +727,59 @@ function startPlay(){
 }
 el.play.addEventListener('click', ()=>{ if (playing){ stopPlay(); return; } startPlay(); });
 
+// prefers-reduced-motion drops the continuous camera/travel — it must NOT
+// drop the story. Same title card and all nine milestone lines still show,
+// as instant cuts (no zoom, no easing) rather than a continuous move, then
+// the same real closing cards. "No continuous motion" and "same content"
+// are two different guarantees; this satisfies both instead of only the
+// first (the earlier version here jumped straight to the settled final
+// frame and only the closing cards — 9 of 10 real story beats were
+// silently missing for anyone with this preference set).
+function playReducedSequence(){
+  const myGen = sequenceGen;
+  const alive = () => sequenceGen === myGen;
+  const beats = [{kind:'title'}, ...milestoneStops.map(ms => ({kind:'milestone', ms}))];
+  let bi = 0;
+  function nextBeat(){
+    if (!alive()) return;
+    if (bi >= beats.length){
+      dayIndex = totalDays;
+      draw(dayIndex, 0, null);
+      el.scrub.value = 1000;
+      el.readout.textContent = fmtDay(totalDays);
+      playClosing({alive});
+      return;
+    }
+    const beat = beats[bi++];
+    if (beat.kind === 'title'){
+      el.title.classList.add('on');
+      setTimeout(()=>{
+        if (!alive()) return;
+        el.title.classList.remove('on');
+        setTimeout(()=>{ if (alive()) nextBeat(); }, 150);
+      }, 1500);
+    } else {
+      const {m, idx} = beat.ms;
+      dayIndex = idx;
+      draw(dayIndex, 0, null);
+      el.scrub.value = Math.round((dayIndex/totalDays)*1000);
+      el.readout.textContent = fmtDay(dayIndex);
+      showLine(m);
+      setTimeout(()=>{
+        if (!alive()) return;
+        el.line.classList.remove('on');
+        setTimeout(()=>{ if (alive()) nextBeat(); }, 150);
+      }, m.big ? 2600 : 1900);
+    }
+  }
+  nextBeat();
+}
+
 resize();
 setPlayIcon(false);
 BrainIntro.mount({
   onUnlock(){
-    if (REDUCED){ dayIndex = totalDays; render(); playClosing({checkPlaying:false}); }
+    if (REDUCED){ playReducedSequence(); }
     else { requestAnimationFrame(startPlay); }
   }
 });
