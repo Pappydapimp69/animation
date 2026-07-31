@@ -1,0 +1,333 @@
+<title>wordless retelling</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:#000; overflow:hidden}
+  .stage{position:fixed; inset:0}
+  canvas{position:absolute; inset:0; display:block; width:100%; height:100%}
+  .rail{position:absolute; left:0; right:0; bottom:0; padding:16px; display:flex; align-items:center; gap:12px}
+  button{
+    -webkit-appearance:none; appearance:none; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.3);
+    color:#fff; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:0; flex:none;
+  }
+  button:hover{background:rgba(255,255,255,.18)}
+  button:focus-visible{outline:2px solid #fff; outline-offset:2px}
+  button svg{width:12px; height:12px}
+  input[type=range]{flex:1; max-width:340px; cursor:pointer; accent-color:#cfa15a}
+  input[type=range]:focus-visible{outline:2px solid #fff; outline-offset:2px}
+</style>
+
+<div class="stage">
+  <canvas id="c" role="img" aria-label="A wordless retelling: two mounds grow on a plain of ground across many day-and-night cycles — small seed-shapes falling and piling on the left, small stone-shapes falling and piling on the right — with one night where far more than usual falls at once, ending with the two mounds at nearly equal size."></canvas>
+  <div class="rail">
+    <button id="play" type="button" aria-label="Pause">
+      <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+    <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Move through time">
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- real data (unchanged from every prior version) ---------- */
+const SEED = [
+  ["2026-06-27",29],["2026-06-30",39],["2026-07-01",65],["2026-07-02",65],
+  ["2026-07-04",67],["2026-07-07",69],["2026-07-08",70],["2026-07-09",82],
+  ["2026-07-10",97],["2026-07-11",298],["2026-07-12",376],["2026-07-13",397],
+  ["2026-07-15",413],["2026-07-16",437],["2026-07-17",439],["2026-07-18",451],
+  ["2026-07-20",482],["2026-07-24",509],["2026-07-26",524],["2026-07-30",527],
+];
+const LESSON = [
+  ["2026-06-14",7],["2026-06-15",17],["2026-06-30",17],["2026-07-01",17],
+  ["2026-07-02",44],["2026-07-03",44],["2026-07-04",48],["2026-07-05",72],
+  ["2026-07-06",72],["2026-07-07",72],["2026-07-08",72],["2026-07-09",136],
+  ["2026-07-10",145],["2026-07-11",200],["2026-07-12",221],["2026-07-13",305],
+  ["2026-07-14",305],["2026-07-15",356],["2026-07-16",377],["2026-07-17",377],
+  ["2026-07-18",417],["2026-07-20",454],["2026-07-24",478],["2026-07-26",505],
+  ["2026-07-30",522],
+];
+const DAY_MS = 86400000;
+function parseD(s){ const [y,m,d]=s.split('-').map(Number); return Date.UTC(y,m-1,d); }
+const START = parseD("2026-06-14"), END = parseD("2026-07-30");
+function densify(series){
+  const out = [];
+  for (let t=START; t<=END; t+=DAY_MS){
+    let v=0; for (const [d,c] of series) if (parseD(d)<=t) v=c;
+    out.push(v);
+  }
+  return out;
+}
+const seedDaily = densify(SEED), lessonDaily = densify(LESSON);
+const totalDays = seedDaily.length-1;
+
+function h2(x,y){ const v=Math.sin(x*127.1+y*311.7)*43758.5453; return v-Math.floor(v); }
+
+function buildItems(daily){
+  const items = [];
+  let prev=0;
+  for (let d=0; d<daily.length; d++){
+    const delta = daily[d]-prev;
+    for (let j=0;j<delta;j++) items.push({day:d, i:items.length});
+    prev = daily[d];
+  }
+  return items;
+}
+const seedItems = buildItems(seedDaily), stoneItems = buildItems(lessonDaily);
+
+/* ---------- pile placement: "power of 3 choices", center-weighted —
+   each item permanently owns one bucket, chosen from a center-weighted
+   spread (four averaged hashes ~ an Irwin-Hall bell curve) so MORE
+   material naturally lands centrally and less toward the edges — an
+   actual tapering mound, not a flat block.
+   (First attempt picked whichever of 3 candidate buckets was currently
+   SHORTEST — a classic load-balancing trick, but load-balancing is
+   exactly the wrong goal here: it actively equalizes bucket heights,
+   which produces a flat-topped block, not a mound. Caught by looking
+   at a real screenshot — the pile read as thin horizontal bands with
+   almost no rise, not a hill.) ---------- */
+const BUCKETS = 64;
+function buildPile(items, seedOffset){
+  const heights = new Float64Array(BUCKETS);
+  for (const it of items){
+    const u = (h2(it.i,seedOffset) + h2(it.i,seedOffset+2.3) + h2(it.i,seedOffset+4.7) + h2(it.i,seedOffset+6.1)) / 4;
+    const b = Math.min(BUCKETS-1, Math.max(0, Math.floor(u*BUCKETS)));
+    const unitH = 0.82 + h2(it.i, seedOffset+1.9)*0.36;
+    it.bucket = b;
+    it.unitY = heights[b] + unitH/2;
+    it.unitH = unitH;
+    it.jx = (h2(it.i, seedOffset+5.3)-0.5)*0.7; // sub-bucket jitter so a bucket isn't a single vertical column
+    heights[b] += unitH;
+  }
+  let maxH = 0; for (const h of heights) if (h>maxH) maxH=h;
+  return { heights, maxH };
+}
+const seedPile = buildPile(seedItems, 1.3);
+const stonePile = buildPile(stoneItems, 4.1);
+const PILE_MAX_UNITS = Math.max(seedPile.maxH, stonePile.maxH);
+
+/* ---------- arrival schedule: same sqrt(N) batch-window pacing used in
+   the dynamic-lights concept, so the one big night still reads as a
+   genuinely longer, denser fall rather than "the same trickle, more of it" ---------- */
+const MS_PER_DAY = 210;
+function windowFor(count){ return count>0 ? (150+Math.sqrt(count)*135) : 0; }
+const dayStart = (function(){
+  const tbl = new Float64Array(seedDaily.length);
+  let cursor=0;
+  for (let d=0; d<seedDaily.length; d++){
+    tbl[d]=cursor;
+    const sc=seedDaily[d]-(d>0?seedDaily[d-1]:0), lc=lessonDaily[d]-(d>0?lessonDaily[d-1]:0);
+    cursor += Math.max(MS_PER_DAY, windowFor(sc), windowFor(lc));
+  }
+  return {tbl, total:cursor};
+})();
+function schedule(items, daily){
+  let dayFirstI=0, curDay=0;
+  for (const it of items){
+    if (it.day!==curDay){ curDay=it.day; dayFirstI=it.i; }
+    const count = daily[it.day]-(it.day>0?daily[it.day-1]:0);
+    const j = it.i-dayFirstI;
+    const w = windowFor(count);
+    it.fallStart = dayStart.tbl[it.day] + (count>1 ? (j/count)*w : 0);
+  }
+}
+schedule(seedItems, seedDaily); schedule(stoneItems, lessonDaily);
+const FALL_MS = 420;
+const PLAYBACK_MS = dayStart.total + FALL_MS;
+
+function storyDayFloat(elapsedMs){
+  const tbl = dayStart.tbl;
+  let d=0;
+  for (let i=0;i<tbl.length;i++){ if (tbl[i]<=elapsedMs) d=i; else break; }
+  const next = d+1<tbl.length ? tbl[d+1] : dayStart.total;
+  const span = Math.max(1, next-tbl[d]);
+  return d + Math.min(1, (elapsedMs-tbl[d])/span);
+}
+
+/* ---------- canvas ---------- */
+const stage = document.querySelector('.stage');
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let CW=0, CH=0;
+function resize(){
+  const r = stage.getBoundingClientRect();
+  const dpr = Math.min(devicePixelRatio||1, 2);
+  CW=r.width; CH=r.height;
+  cv.width=Math.round(CW*dpr); cv.height=Math.round(CH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  draw(elapsed);
+}
+window.addEventListener('resize', ()=>{ clearTimeout(resize._t); resize._t=setTimeout(resize,100); });
+
+function easeInQuad(t){ return t*t; }
+
+function skyAndGround(dayFloat){
+  const cyc = dayFloat % 1; // 0..1 within the current day/night cycle
+  // sun arcs up through the first ~55% of the cycle, moon through the rest
+  const isDay = cyc < 0.55;
+  const p = isDay ? cyc/0.55 : (cyc-0.55)/0.45;
+  const arc = Math.sin(Math.PI*p); // 0 at horizon, 1 overhead
+  const groundY = CH*0.78;
+
+  const dayTop=[120,168,214], dayBot=[203,224,232];
+  const duskTop=[40,32,58], duskBot=[176,110,74];
+  const nightTop=[6,8,18], nightBot=[16,20,34];
+  function mix(a,b,t){ return a.map((v,i)=>Math.round(v+(b[i]-v)*t)); }
+  let top,bot;
+  if (isDay){
+    const duskness = Math.max(0, 1-arc*2.4);
+    top = mix(dayTop,duskTop,duskness*0.5); bot = mix(dayBot,duskBot,duskness*0.7);
+  } else {
+    const duskness = Math.max(0, 1-arc*2.4);
+    top = mix(nightTop,duskTop,duskness*0.35); bot = mix(nightBot,duskBot,duskness*0.45);
+  }
+  const g = ctx.createLinearGradient(0,0,0,groundY);
+  g.addColorStop(0, `rgb(${top.join(',')})`);
+  g.addColorStop(1, `rgb(${bot.join(',')})`);
+  ctx.fillStyle=g; ctx.fillRect(0,0,CW,groundY);
+  ctx.fillStyle = `rgb(${nightBot.join(',')})`;
+  ctx.fillRect(0,groundY,CW,CH-groundY);
+
+  if (!isDay && !REDUCED){
+    for (let i=0;i<70;i++){
+      const sx=h2(i,1)*CW, sy=h2(i,2)*groundY*0.8;
+      const tw = 0.3+0.5*h2(i,3);
+      ctx.fillStyle = `rgba(255,255,255,${tw*(1-arc*0.5)})`;
+      ctx.fillRect(sx,sy,1.3,1.3);
+    }
+  }
+
+  const bx = CW*0.5 + Math.cos(Math.PI - p*Math.PI)*CW*0.62;
+  const by = groundY - arc*CH*0.5 - CH*0.04;
+  ctx.save();
+  if (isDay){
+    const sg = ctx.createRadialGradient(bx,by,0,bx,by,54);
+    sg.addColorStop(0,'rgba(255,244,214,.9)'); sg.addColorStop(1,'rgba(255,244,214,0)');
+    ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(bx,by,54,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(255,250,235,.95)'; ctx.beginPath(); ctx.arc(bx,by,15,0,Math.PI*2); ctx.fill();
+  } else {
+    const mg = ctx.createRadialGradient(bx,by,0,bx,by,36);
+    mg.addColorStop(0,'rgba(226,232,240,.55)'); mg.addColorStop(1,'rgba(226,232,240,0)');
+    ctx.fillStyle=mg; ctx.beginPath(); ctx.arc(bx,by,36,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='rgba(230,234,242,.92)'; ctx.beginPath(); ctx.arc(bx,by,11,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+  return groundY;
+}
+
+function pileGeometry(){
+  const groundY = CH*0.78;
+  const pileW = Math.min(CW*0.34, 360);
+  return {
+    groundY,
+    seed:  { cx: CW*0.28, w: pileW },
+    stone: { cx: CW*0.72, w: pileW },
+  };
+}
+
+function drawSeed(x,y,s,alpha){
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#d9a441';
+  ctx.beginPath();
+  ctx.ellipse(x,y, 2.6*s, 1.7*s, 0.5, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,232,180,.55)';
+  ctx.beginPath(); ctx.ellipse(x-0.6*s,y-0.5*s, 0.9*s,0.5*s, 0.5, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function drawStone(x,y,s,seedI,alpha){
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#82838c';
+  ctx.beginPath();
+  const n=6;
+  for (let k=0;k<n;k++){
+    const a = (k/n)*Math.PI*2;
+    const rr = (2.6+ h2(seedI, k*2.1)*1.1) * s;
+    const px = x+Math.cos(a)*rr, py = y+Math.sin(a)*rr*0.78;
+    k===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.18)';
+  ctx.beginPath(); ctx.ellipse(x,y+1.6*s,2.4*s,1*s,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawPile(items, pileInfo, groundY, unitsToPx, kind, elapsedMs){
+  for (const it of items){
+    const age = elapsedMs - it.fallStart;
+    if (age < 0) continue;
+    const bx = pileInfo.cx + ((it.bucket/(BUCKETS-1))-0.5)*pileInfo.w + it.jx*(pileInfo.w/BUCKETS);
+    const finalY = groundY - it.unitY*unitsToPx;
+    const s = 1.0;
+    if (age < FALL_MS){
+      const p = easeInQuad(Math.min(1,age/FALL_MS));
+      const y = -10 + (finalY-(-10))*p;
+      if (kind==='seed') drawSeed(bx,y,s,0.95); else drawStone(bx,y,s,it.i,0.95);
+      continue;
+    }
+    const settleT = age-FALL_MS;
+    let sc = 1;
+    if (settleT < 160){ const p=settleT/160; sc = 1 + Math.sin(p*Math.PI)*0.22*(1-p); }
+    if (kind==='seed') drawSeed(bx,finalY,sc,0.98); else drawStone(bx,finalY,sc,it.i,0.98);
+    if (settleT < 220 && !REDUCED){
+      const p = settleT/220;
+      ctx.save();
+      ctx.globalAlpha = (1-p)*0.35;
+      ctx.fillStyle = '#c9ccd4';
+      ctx.beginPath(); ctx.arc(bx, finalY+2, 3+p*7, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+let elapsed = 0;
+function draw(elapsedMs){
+  ctx.clearRect(0,0,CW,CH);
+  const dayFloat = REDUCED ? totalDays : storyDayFloat(elapsedMs);
+  const groundY = skyAndGround(dayFloat);
+  const geo = pileGeometry();
+  const unitsToPx = (CH*0.4)/Math.max(1,PILE_MAX_UNITS);
+  drawPile(seedItems, geo.seed, groundY, unitsToPx, 'seed', elapsedMs);
+  drawPile(stoneItems, geo.stone, groundY, unitsToPx, 'stone', elapsedMs);
+}
+
+/* ---------- playback ---------- */
+const el = {
+  scrub: document.getElementById('scrub'), play: document.getElementById('play'), playIcon: document.getElementById('playIcon'),
+};
+const ICON_PAUSE='M6 5h4v14H6zM14 5h4v14h-4z', ICON_PLAY='M8 5v14l11-7z';
+function setPlayIcon(p){ el.playIcon.querySelector('path').setAttribute('d', p?ICON_PAUSE:ICON_PLAY); el.play.setAttribute('aria-label', p?'Pause':'Play'); }
+
+let playing=false, raf=null, lastT=0, idleRaf=null;
+function render(){ draw(elapsed); el.scrub.value = Math.round((elapsed/PLAYBACK_MS)*1000); }
+function stopIdle(){ if (idleRaf) cancelAnimationFrame(idleRaf); idleRaf=null; }
+function idleLoop(){ if (!REDUCED){ draw(elapsed); idleRaf=requestAnimationFrame(idleLoop); } }
+function stopPlay(){ playing=false; setPlayIcon(false); if (raf) cancelAnimationFrame(raf); }
+function seekTo(ms){ stopPlay(); elapsed=Math.max(0,Math.min(PLAYBACK_MS,ms)); render(); stopIdle(); if(!REDUCED) idleLoop(); }
+el.scrub.addEventListener('input', ()=> seekTo((el.scrub.value/1000)*PLAYBACK_MS) );
+
+function startPlay(){
+  stopIdle(); playing=true; setPlayIcon(true); elapsed=0; lastT=performance.now();
+  function step(now){
+    if (!playing) return;
+    elapsed += (now-lastT); lastT=now;
+    if (elapsed>=PLAYBACK_MS){ elapsed=PLAYBACK_MS; render(); stopPlay(); idleLoop(); return; }
+    render();
+    raf=requestAnimationFrame(step);
+  }
+  raf=requestAnimationFrame(step);
+}
+el.play.addEventListener('click', ()=>{ if (playing){ stopPlay(); return; } startPlay(); });
+
+resize();
+setPlayIcon(false);
+if (REDUCED){ elapsed=PLAYBACK_MS; render(); }
+else { requestAnimationFrame(startPlay); }
+})();
+</script>
