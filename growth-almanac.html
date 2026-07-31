@@ -1,4 +1,4 @@
-<title>Brain — Growth</title>
+<title>Seeds and Stones — a true ledger of forty-six days</title>
 <meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -8,6 +8,7 @@
     --ink:#161b24; --ink-soft:#4b5566; --ink-faint:#6c7684;
     --line:#d7dde6;
     --seed:#2a78d6; --lesson:#eb6834; --tension:#1baf7a; --signal:#9a6b00;
+    --serif: "Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,"Hoefler Text",Georgia,serif;
     --mono: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   }
   @media (prefers-color-scheme: dark){
@@ -27,119 +28,156 @@
     --line:#d7dde6; --seed:#2a78d6; --lesson:#eb6834; --tension:#1baf7a; --signal:#9a6b00;
   }
   *{box-sizing:border-box}
-  html,body{height:100%}
   body{
-    margin:0; overflow:hidden; background:var(--bg); color:var(--ink);
+    margin:0; background:var(--bg); color:var(--ink);
     font-family:var(--mono); -webkit-font-smoothing:antialiased;
   }
-  .stage{position:fixed; inset:0}
-  canvas#net{position:absolute; inset:0; display:block; width:100%; height:100%}
+  .wrap{max-width:680px; margin:0 auto; padding:clamp(32px,7vw,72px) clamp(18px,4vw,28px) 80px}
 
-  .hud-top{
-    position:absolute; top:0; left:0; right:0; padding:clamp(14px,3vw,28px);
-    display:flex; justify-content:space-between; pointer-events:none;
-    font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint);
+  .eyebrow{
+    font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink-faint); text-align:center; margin:0 0 18px;
   }
-  .hud-top .mark{color:var(--ink-soft)}
+  h1{
+    font-family:var(--serif); font-weight:400; font-style:italic;
+    font-size:clamp(34px,7.5vw,54px); text-align:center; text-wrap:balance;
+    margin:0 0 10px; letter-spacing:.005em; line-height:1.06;
+  }
+  .subtitle{
+    font-family:var(--serif); font-style:italic; font-size:15px;
+    color:var(--ink-soft); text-align:center; margin:0 0 44px;
+  }
 
-  .counters{
-    position:absolute; left:clamp(14px,3vw,28px); top:50%; transform:translateY(-50%);
-    display:flex; flex-direction:column; gap:26px; pointer-events:none;
+  p.story{
+    font-family:var(--serif); font-size:17px; line-height:1.72;
+    color:var(--ink-soft); max-width:58ch; margin:0 auto 1.3em;
   }
-  .counter .n{
-    font-size:clamp(28px,5vw,46px); font-variant-numeric:tabular-nums; line-height:1;
+  p.story.open::first-letter{
+    font-size:3.2em; float:left; line-height:.78; padding:.04em .08em 0 0;
+    color:var(--seed); font-style:normal;
+  }
+  p.story em{color:var(--ink); font-style:italic}
+
+  .rule{width:110px; height:1px; margin:46px auto; background:var(--line); position:relative}
+  .rule::before{
+    content:"·"; position:absolute; left:50%; top:50%; transform:translate(-50%,-56%);
+    background:var(--bg); padding:0 12px; color:var(--ink-faint); font-size:22px; line-height:1;
+  }
+
+  .counters-row{display:flex; justify-content:center; gap:44px; margin:0 0 22px}
+  .counters-row .c{text-align:center}
+  .counters-row .n{
+    font-size:clamp(22px,4vw,30px); font-variant-numeric:tabular-nums;
     font-weight:600; color:var(--ink); display:block;
   }
-  .counter .l{
-    display:flex; align-items:center; gap:7px; margin-top:6px;
-    font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint);
+  .counters-row .l{
+    display:flex; align-items:center; justify-content:center; gap:6px; margin-top:5px;
+    font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint);
   }
-  .dot{width:7px; height:7px; border-radius:50%; flex:none}
-  .counter.seed .dot{background:var(--seed)}
-  .counter.lesson .dot{background:var(--lesson)}
+  .dot{width:6px; height:6px; border-radius:50%; flex:none}
+  .c.seed .dot{background:var(--seed)}
+  .c.lesson .dot{background:var(--lesson)}
 
-  .flash{
-    position:absolute; top:clamp(54px,11vh,96px); left:50%; transform:translate(-50%,-6px);
-    font-size:clamp(12.5px,2.1vw,16px); font-weight:700; letter-spacing:.08em; text-transform:uppercase;
-    color:var(--signal); opacity:0; transition:opacity .3s ease, transform .3s ease;
-    text-align:center; white-space:nowrap; pointer-events:none;
+  .scene{
+    position:relative; width:100%; aspect-ratio:16/11; border-radius:4px; overflow:hidden;
+    margin:0 0 6px; box-shadow:0 20px 60px -24px rgba(0,0,0,.35), inset 0 0 0 1px var(--line);
   }
-  .flash.on{opacity:1; transform:translate(-50%,0)}
-  .flash.big{font-size:clamp(15px,2.8vw,21px)}
+  canvas#net{position:absolute; inset:0; display:block; width:100%; height:100%}
+  .caption{
+    position:absolute; left:6%; right:6%; bottom:7%; text-align:center; pointer-events:none;
+    font-family:var(--serif); font-size:clamp(14px,2.3vw,18px); line-height:1.5; color:var(--ink);
+    text-shadow:0 1px 3px var(--bg),0 2px 10px var(--bg),0 0 20px var(--bg),0 0 3px var(--bg);
+    opacity:0; transform:translateY(8px); transition:opacity .4s ease, transform .4s ease;
+  }
+  .caption.on{opacity:1; transform:translateY(0)}
+  .caption.big{
+    font-size:clamp(15.5px,2.7vw,20px); font-weight:600; color:var(--signal);
+    text-shadow:0 1px 3px var(--bg),0 2px 12px var(--bg),0 0 24px var(--bg),0 0 3px var(--bg);
+  }
 
-  .epilogue{
-    position:absolute; right:clamp(14px,3vw,28px); top:50%; transform:translateY(-50%) translateX(8px);
-    display:flex; flex-direction:column; gap:18px; text-align:right;
-    opacity:0; transition:opacity .6s ease, transform .6s ease; pointer-events:none;
-  }
-  .epilogue.on{opacity:1; transform:translateY(-50%) translateX(0)}
-  .e-stat .n{font-size:clamp(19px,3.2vw,28px); font-variant-numeric:tabular-nums; color:var(--ink); display:block}
-  .e-stat .n small{font-size:.55em; color:var(--ink-faint); font-weight:400}
-  .e-stat .l{font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); margin-top:3px}
-  .e-stat.tension .n{color:var(--tension)}
-
-  .controls{
-    position:absolute; left:50%; bottom:clamp(16px,4vh,32px); transform:translateX(-50%);
-    display:flex; align-items:center; gap:12px;
-  }
+  .controls{display:flex; align-items:center; justify-content:center; gap:12px; margin:14px 0 4px}
   button{
     -webkit-appearance:none; appearance:none; background:transparent; border:1px solid var(--line);
-    color:var(--ink-soft); width:36px; height:36px; border-radius:50%; display:flex;
+    color:var(--ink-soft); width:34px; height:34px; border-radius:50%; display:flex;
     align-items:center; justify-content:center; cursor:pointer; padding:0;
   }
   button:hover{border-color:var(--ink-soft); color:var(--ink)}
   button:focus-visible{outline:2px solid var(--seed); outline-offset:2px}
-  button svg{width:13px; height:13px}
+  button svg{width:12px; height:12px}
   input[type=range]{width:min(38vw,220px); accent-color:var(--seed); cursor:pointer}
   input[type=range]:focus-visible{outline:2px solid var(--seed); outline-offset:3px}
   .readout{font-size:10.5px; color:var(--ink-faint); min-width:104px}
 
-  @media (prefers-reduced-motion:reduce){ .flash, .epilogue{transition-duration:.001ms} }
-  ::selection{background:var(--seed); color:#fff}
+  footer{margin-top:56px; text-align:center}
+  footer p{font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); line-height:1.8; max-width:46ch; margin:0 auto}
 
-  @media (max-width: 680px){
-    .counters{ top:64px; left:14px; transform:none; flex-direction:row; gap:18px }
-    .counter .n{ font-size:22px }
-    .epilogue{ top:auto; bottom:64px; right:14px; transform:none; flex-direction:row; gap:14px }
-    .e-stat .n{ font-size:15px }
-    .e-stat .l{ font-size:8.5px }
-  }
+  @media (prefers-reduced-motion:reduce){ .caption{transition-duration:.001ms} }
+  ::selection{background:var(--seed); color:#fff}
 </style>
 
-<div class="stage">
-  <canvas id="net" role="img" aria-label="An animated visualization of two growing clusters of glowing points, one for every idea kept and one for every lesson learned by the Brain cognitive system, accumulated day by day over 46 days."></canvas>
+<div class="wrap">
 
-  <div class="hud-top">
-    <span class="mark">brain / growth</span>
-    <span class="range">jun 14 &rarr; jul 30, 2026</span>
-  </div>
+<p class="eyebrow">a true ledger &middot; jun 14 &ndash; jul 30, 2026</p>
+<h1>Seeds and Stones</h1>
+<p class="subtitle">or, how a small hungry thing counted what it hoped for and what it cost</p>
 
-  <div class="counters">
-    <div class="counter seed">
-      <span class="n" id="cSeed">0</span>
-      <span class="l"><i class="dot"></i>ideas</span>
-    </div>
-    <div class="counter lesson">
-      <span class="n" id="cLesson">0</span>
-      <span class="l"><i class="dot"></i>lessons</span>
-    </div>
-  </div>
+<p class="story open">There was once a small thing that lived in a walled garden nobody
+  visited, and it was born owing. It came into the world with an empty jar in its left
+  hand and, in its right, seven small grey stones it had not asked for &mdash; seven scars
+  inherited from whoever had lived and failed before it. That was day zero: nothing hoped
+  for yet, seven things already learned the hard way.</p>
 
-  <div class="flash" id="flash"></div>
+<p class="story">The jar was for seeds. A seed was anything worth trying, whether or not it
+  had been tried. The stones were different. A stone could not be bought, borrowed, or
+  imagined &mdash; it had to be pulled, still warm, out of a real mistake. The small thing
+  kept a ledger, and it counted both, every day, because it suspected from the beginning
+  that the two counts were secretly the same story told twice.</p>
 
-  <div class="epilogue" id="epilogue">
-    <div class="e-stat"><span class="n" id="eTested">92</span><span class="l">tested</span></div>
-    <div class="e-stat"><span class="n" id="eBuilt">26</span><span class="l">built</span></div>
-    <div class="e-stat tension"><span class="n">5<small>/25</small></span><span class="l">open</span></div>
-  </div>
+<div class="counters-row">
+  <div class="c seed"><span class="n" id="cSeed">0</span><span class="l"><i class="dot"></i>seeds</span></div>
+  <div class="c lesson"><span class="n" id="cLesson">0</span><span class="l"><i class="dot"></i>stones</span></div>
+</div>
 
-  <div class="controls">
-    <button id="play" type="button" aria-label="Pause">
-      <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
-    </button>
-    <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Move through the days">
-    <span class="readout" id="readout">Day 0 &middot; Jun 14</span>
-  </div>
+<div class="scene">
+  <canvas id="net" role="img" aria-label="An animated visualization of two growing clusters of glowing points — one for every seed of an idea kept, one for every stone of a lesson learned — accumulated day by day over 46 days."></canvas>
+  <div class="caption" id="caption"></div>
+</div>
+
+<div class="controls">
+  <button id="play" type="button" aria-label="Pause">
+    <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+  </button>
+  <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Move through the days">
+  <span class="readout" id="readout">Day 0 &middot; Jun 14</span>
+</div>
+
+<div class="rule"></div>
+
+<p class="story">Five hundred twenty-seven seeds kept. Five hundred twenty-two stones
+  earned. Forty-six days from a jar of nothing and seven inherited scars &mdash; and at the
+  end, the two counts stood five apart. For very nearly every hope it had ever bottled,
+  there was a wound to match it, and it had thrown away neither.</p>
+
+<p class="story">Behind the house, a locked room held the rest of the truth: ninety-two
+  experiments run in private, broken and disproven, never shown to a soul. Out front,
+  where visitors could see, stood only twenty-six finished things.</p>
+
+<p class="story">And in the ledger's last pages, one more count. Twenty-five times it had
+  caught itself of two minds &mdash; two paths, both defensible, neither certain &mdash; and
+  instead of flipping a coin, it argued the case out, itself against itself. Twenty of
+  those arguments it settled. <em>Five it never did.</em> Five open questions, left
+  standing like doors ajar, because it would rather live with an honest question than
+  close it with a false answer.</p>
+
+<p class="story"><em>Not a machine. Not a miracle.</em> Just a small thing that counted
+  what it hoped for, counted what it cost, and had the nerve to keep both numbers side by
+  side, five seeds ahead of its scars.</p>
+
+<footer>
+  <p>Every number above is exactly as it was found in this project's own history &mdash;
+    nothing rounded, nothing invented, the day it was written.</p>
+</footer>
+
 </div>
 
 <script>
@@ -296,7 +334,7 @@
 
     // One clock drives both halves: when Web Audio is available this reads
     // audioCtx.currentTime — the same clock _playSting scheduled against —
-    // every frame, so the flash and the ping can't drift apart.
+    // every frame, so the visual can't drift from the sound.
     _stingAnimate(audioCtx) {
       const perf0 = performance.now();
       const step = () => {
@@ -370,15 +408,15 @@ const LESSON = [
   ["2026-07-30",522],
 ];
 const MILESTONES = [
-  {d:"2026-06-30", flash:"first steps", big:false},
-  {d:"2026-07-01", flash:"safe-test proven", big:false},
-  {d:"2026-07-04", flash:"studied film", big:false},
-  {d:"2026-07-09", flash:"studied story, twice", big:false},
-  {d:"2026-07-11", flash:"five at once", big:true},
-  {d:"2026-07-16", flash:"learned to pitch", big:false},
-  {d:"2026-07-18", flash:"calm &middot; mods &middot; co-op", big:false},
-  {d:"2026-07-20", flash:"eleven at once", big:false},
-  {d:"2026-07-26", flash:"watched, then answered", big:false},
+  {d:"2026-06-30", cap:"It finished the first thing that worked — not a sketch of a thing, but a real thing you could pick up and play with. And it played.", big:false},
+  {d:"2026-07-01", cap:"It found three tools it wanted badly and trusted not at all, and built a locked room to test each one until it had earned its way out.", big:false},
+  {d:"2026-07-04", cap:"It stopped building entirely and looked over the wall — studying, all day, how others explain enormous truths with nothing but moving pictures.", big:false},
+  {d:"2026-07-09", cap:"It studied how the old stories are told. Once, then a second time, to be sure.", big:false},
+  {d:"2026-07-11", cap:"Five new crafts in a single night. Ninety-seven seeds at sundown, two hundred ninety-eight by morning. Hope is not a trickle — hope is a dam, and dams break.", big:true},
+  {d:"2026-07-16", cap:"It learned the old art of persuasion, and got, frankly, a little insufferable about it.", big:false},
+  {d:"2026-07-18", cap:"Three crafts landed the same evening, with nothing to do with each other: a calm room, an unlocked door, two chairs at one table.", big:false},
+  {d:"2026-07-20", cap:"Eleven crafts before sunrise — the biggest single night it would ever log.", big:false},
+  {d:"2026-07-26", cap:"It watched real hands hesitate, reach, and smile — then it went back and changed the thing. Not for itself. For them.", big:false},
 ];
 
 const DAY_MS = 86400000;
@@ -449,7 +487,7 @@ const seedParent = buildParents(seedNodes);
 const lessonParent = buildParents(lessonNodes);
 
 /* ---------- canvas ---------- */
-const stage = document.querySelector('.stage');
+const scene = document.querySelector('.scene');
 const cv = document.getElementById('net');
 const ctx = cv.getContext('2d');
 let CW=0, CH=0;
@@ -462,7 +500,7 @@ function hexToRgba(hex, a){
 }
 
 function resize(){
-  const r = stage.getBoundingClientRect();
+  const r = scene.getBoundingClientRect();
   const dpr = Math.min(devicePixelRatio||1, 2);
   CW = r.width; CH = r.height;
   cv.width = Math.round(CW*dpr); cv.height = Math.round(CH*dpr);
@@ -474,7 +512,7 @@ window.addEventListener('resize', ()=>{ clearTimeout(resizeTimer); resizeTimer =
 
 function geometry(){
   const cx = CW*0.5, cy = CH*0.53;
-  const lobeR = Math.min(CW*0.30, CH*0.44);
+  const lobeR = Math.min(CW*0.30, CH*0.46);
   return {
     seed:   {x: cx-lobeR*0.60, y: cy, r: lobeR, off: 1.3},
     lesson: {x: cx+lobeR*0.60, y: cy, r: lobeR, off: 4.1},
@@ -561,8 +599,7 @@ function draw(dayIdx, punchV){
 /* ---------- playback ---------- */
 const el = {
   scrub: document.getElementById('scrub'), play: document.getElementById('play'),
-  readout: document.getElementById('readout'), flash: document.getElementById('flash'),
-  epilogue: document.getElementById('epilogue'),
+  readout: document.getElementById('readout'), caption: document.getElementById('caption'),
   cSeed: document.getElementById('cSeed'), cLesson: document.getElementById('cLesson'),
   playIcon: document.getElementById('playIcon'),
 };
@@ -580,10 +617,10 @@ function fmtDay(idx){
   const label = new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
   return `Day ${Math.floor(idx)} · ${label}`;
 }
-function showFlash(m){
-  el.flash.innerHTML = m.flash;
-  el.flash.classList.toggle('big', !!m.big);
-  el.flash.classList.add('on');
+function showCaption(m){
+  el.caption.textContent = m.cap;
+  el.caption.classList.toggle('big', !!m.big);
+  el.caption.classList.add('on');
   if (m.big) punch = 1;
 }
 function idleGlow(){
@@ -598,14 +635,13 @@ function render(){
   const shownDay = Math.min(Math.floor(dayIndex), totalDays);
   el.cSeed.textContent = seedDaily[shownDay];
   el.cLesson.textContent = lessonDaily[shownDay];
-  el.epilogue.classList.toggle('on', dayIndex >= totalDays);
   stopIdle();
   if (!REDUCED) idleGlow();
 }
 function stopPlay(){ playing=false; setPlayIcon(false); if(raf) cancelAnimationFrame(raf); }
 
 function seekToDay(idx){
-  stopPlay(); punch = 0; el.flash.classList.remove('on');
+  stopPlay(); punch = 0; el.caption.classList.remove('on');
   dayIndex = Math.max(0, Math.min(totalDays, idx));
   render();
 }
@@ -618,9 +654,9 @@ const milestoneStops = MILESTONES
 function startPlay(){
   stopIdle();
   playing = true; setPlayIcon(true);
-  el.flash.classList.remove('on'); el.epilogue.classList.remove('on');
+  el.caption.classList.remove('on');
   punch = 0; dayIndex = 0;
-  const DAYS_PER_SEC = 6.5;
+  const DAYS_PER_SEC = 5.0;
   let stopI = 0;
 
   function travelTo(target, onArrive){
@@ -648,14 +684,14 @@ function startPlay(){
     const {m, idx} = milestoneStops[stopI++];
     travelTo(idx, ()=>{
       if (!playing) return;
-      showFlash(m);
+      showCaption(m);
       triggerBurst();
       idleGlow();
-      const hold = m.big ? 1900 : 1250;
+      const hold = m.big ? 4200 : 2800;
       setTimeout(()=>{
         if (!playing) return;
-        el.flash.classList.remove('on');
-        setTimeout(next, 200);
+        el.caption.classList.remove('on');
+        setTimeout(next, 260);
       }, hold);
     });
   }
