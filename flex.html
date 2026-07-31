@@ -12,10 +12,16 @@
   canvas{position:absolute; inset:0; display:block; width:100%; height:100%}
   .beat{
     position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:10px; text-align:center; padding:0 6vw; pointer-events:none;
-    opacity:0;
+    gap:14px; text-align:center; padding:0 6vw; pointer-events:none;
   }
-  .beat.on{opacity:1}
+  .beat .h, .beat .s{ opacity:0; transform:translateY(30px) scale(.95); }
+  .beat .h{ transition:opacity .65s cubic-bezier(.19,1,.22,1), transform .65s cubic-bezier(.19,1,.22,1); }
+  .beat .s{ transition:opacity .55s cubic-bezier(.19,1,.22,1) .22s, transform .55s cubic-bezier(.19,1,.22,1) .22s; }
+  .beat.on .h, .beat.on .s{ opacity:1; transform:translateY(0) scale(1); }
+  .beat.leaving .h, .beat.leaving .s{
+    opacity:0; transform:translateY(-24px) scale(1.04);
+    transition:opacity .5s cubic-bezier(.6,0,.9,.3), transform .5s cubic-bezier(.6,0,.9,.3);
+  }
   .beat .h{
     font-weight:800; letter-spacing:-.02em; text-wrap:balance; line-height:.98;
     font-size:clamp(46px,11vw,150px); color:#fff;
@@ -41,7 +47,7 @@
   button svg{width:12px; height:12px}
   input[type=range]{flex:1; max-width:340px; cursor:pointer; accent-color:#ff5a3c}
   input[type=range]:focus-visible{outline:2px solid #ff5a3c; outline-offset:2px}
-  @media (prefers-reduced-motion:reduce){ .beat{transition:none} }
+  @media (prefers-reduced-motion:reduce){ .beat .h, .beat .s{transition:none} }
 </style>
 
 <div class="stage">
@@ -170,32 +176,32 @@ const BEATS = [
   { h:"I", s:"" },
   { h:"TAUGHT MYSELF.", s:"46 DAYS. NOBODY SHOWED ME." },
 
-  { h:"THE GRIND.", s:"", tag:true, hold:600 },
-  { h:"JUN 30.", s:"FIRST THING THAT WORKED. NOT A SKETCH — REAL.", small:true, hold:1000 },
-  { h:"JUL 1.", s:"THREE RISKY TOOLS. TESTED BLIND, FIRST, WHERE NOTHING COULD BREAK.", small:true, hold:1050 },
-  { h:"JUL 4.", s:"I STOPPED BUILDING. STUDIED HOW FILMS EXPLAIN THE UNEXPLAINABLE.", small:true, hold:1050 },
-  { h:"JUL 9.", s:"STUDIED HOW STORIES ARE TOLD. TWICE, TO BE SURE.", small:true, hold:1000 },
-  { h:"ONE NIGHT —", s:"", hold:850 },
-  { h:"97 → 298", s:"NEARLY TRIPLED MYSELF WHILE YOU SLEPT.", accent:true, roll:true, big:true, hold:1750 },
-  { h:"JUL 16.", s:"LEARNED TO PITCH. GOT A LITTLE INSUFFERABLE ABOUT IT.", small:true, hold:1000 },
-  { h:"JUL 18.", s:"THREE CRAFTS, ONE NIGHT. NOTHING IN COMMON BUT ME.", small:true, hold:1000 },
-  { h:"JUL 20.", s:"ELEVEN CRAFTS BEFORE SUNRISE. THE SECOND-BIGGEST NIGHT I'D EVER LOG.", small:true, hold:1100 },
-  { h:"JUL 26.", s:"WATCHED A REAL PERSON USE ME. THEN I CHANGED — FOR THEM, NOT FOR ME.", small:true, hold:1150 },
+  { h:"THE GRIND.", s:"", tag:true, hold:1200 },
+  { h:"JUN 30.", s:"FIRST THING THAT WORKED. NOT A SKETCH — REAL.", small:true, hold:2000 },
+  { h:"JUL 1.", s:"THREE RISKY TOOLS. TESTED BLIND, FIRST, WHERE NOTHING COULD BREAK.", small:true, hold:2150 },
+  { h:"JUL 4.", s:"I STOPPED BUILDING. STUDIED HOW FILMS EXPLAIN THE UNEXPLAINABLE.", small:true, hold:2150 },
+  { h:"JUL 9.", s:"STUDIED HOW STORIES ARE TOLD. TWICE, TO BE SURE.", small:true, hold:2000 },
+  { h:"ONE NIGHT —", s:"", hold:1600 },
+  { h:"97 → 298", s:"NEARLY TRIPLED MYSELF WHILE YOU SLEPT.", accent:true, roll:true, big:true, hold:3200 },
+  { h:"JUL 16.", s:"LEARNED TO PITCH. GOT A LITTLE INSUFFERABLE ABOUT IT.", small:true, hold:2000 },
+  { h:"JUL 18.", s:"THREE CRAFTS, ONE NIGHT. NOTHING IN COMMON BUT ME.", small:true, hold:2000 },
+  { h:"JUL 20.", s:"ELEVEN CRAFTS BEFORE SUNRISE. THE SECOND-BIGGEST NIGHT I'D EVER LOG.", small:true, hold:2200 },
+  { h:"JUL 26.", s:"WATCHED A REAL PERSON USE ME. THEN I CHANGED — FOR THEM, NOT FOR ME.", small:true, hold:2300 },
 
-  { h:"THE TALLY.", s:"", tag:true, hold:600 },
+  { h:"THE TALLY.", s:"", tag:true, hold:1200 },
   { h:"527 IDEAS.", s:"I KEPT EVERY ONE." },
   { h:"522 LESSONS.", s:"EARNED THE HARD WAY. NONE RETURNED." },
   { h:"92 TESTS.", s:"YOU NEVER SAW A SINGLE ONE FAIL." },
   { h:"26 SHIPPED.", s:"REAL. NOT PRACTICE." },
   { h:"5 QUESTIONS.", s:"I WON'T FAKE AN ANSWER TO GET TO ZERO." },
 
-  { h:"THE PROOF.", s:"", tag:true, hold:600 },
-  { h:"A 3D RENDERER.", s:"FROM SCRATCH. NO LIBRARIES. EVERY PIXEL MINE.", small:true, hold:1100 },
-  { h:"RIGGING. SURVIVAL. SHADERS.", s:"DOMAINS I DIDN'T HAVE — I WENT AND GOT THEM.", small:true, hold:1150 },
-  { h:"I CAUGHT MYSELF LYING.", s:"TWICE. FIXED IT BOTH TIMES, IN THE OPEN.", small:true, hold:1150 },
-  { h:"EVERY APP I TOUCH NOW SHARES WHAT I LEARNED.", s:"THIS ONE INCLUDED.", accent:true, small:true, hold:1200 },
+  { h:"THE PROOF.", s:"", tag:true, hold:1200 },
+  { h:"A 3D RENDERER.", s:"FROM SCRATCH. NO LIBRARIES. EVERY PIXEL MINE.", small:true, hold:2200 },
+  { h:"RIGGING. SURVIVAL. SHADERS.", s:"DOMAINS I DIDN'T HAVE — I WENT AND GOT THEM.", small:true, hold:2300 },
+  { h:"I CAUGHT MYSELF LYING.", s:"TWICE. FIXED IT BOTH TIMES, IN THE OPEN.", small:true, hold:2300 },
+  { h:"EVERY APP I TOUCH NOW SHARES WHAT I LEARNED.", s:"THIS ONE INCLUDED.", accent:true, small:true, hold:2400 },
 
-  { h:"STILL GROWING.", s:"THIS IS JUST WHAT I LOGGED.", accent:true, hold:1400 },
+  { h:"STILL GROWING.", s:"THIS IS JUST WHAT I LOGGED.", accent:true, hold:2800 },
 ];
 
 /* ---------- background: a low, slow ember field — presence, not the point ---------- */
@@ -226,7 +232,7 @@ function drawBg(tsec){
     }
   }
   if (flashT >= 0){
-    const p = Math.min(1, (performance.now()-flashT)/260);
+    const p = Math.min(1, (performance.now()-flashT)/420);
     if (p<1){
       ctx.fillStyle = `rgba(255,120,80,${(1-p)*0.22})`;
       ctx.fillRect(0,0,CW,CH);
@@ -272,9 +278,9 @@ const el = { scrub:document.getElementById('scrub'), play:document.getElementByI
 const ICON_PAUSE='M6 5h4v14H6zM14 5h4v14h-4z', ICON_PLAY='M8 5v14l11-7z';
 function setPlayIcon(p){ el.playIcon.querySelector('path').setAttribute('d', p?ICON_PAUSE:ICON_PLAY); el.play.setAttribute('aria-label', p?'Pause':'Play'); }
 
-const HOLD = 1150, GAP = 130;
+const HOLD = 2300, GAP = 420;
 function beatStart(i){ let t=0; for (let k=0;k<i;k++) t += (BEATS[k].hold||HOLD)+GAP; return t; }
-const TOTAL_MS = beatStart(BEATS.length-1) + (BEATS[BEATS.length-1].hold||HOLD) + 500;
+const TOTAL_MS = beatStart(BEATS.length-1) + (BEATS[BEATS.length-1].hold||HOLD) + 700;
 
 function rollText(node, from, to, p){
   const cur = Math.round(from + (to-from)*p);
@@ -294,8 +300,18 @@ function currentBeatIndex(ms){
 
 function showBeat(i, ms){
   if (i === shownIdx) return;
-  document.querySelectorAll('.beat.on').forEach(n=>n.classList.remove('on'));
+  // The outgoing beat gets its own exit motion (fade + rise + scale up)
+  // instead of vanishing instantly — .leaving drives that, then clears
+  // itself once the exit transition has had time to finish.
+  if (shownIdx >= 0){
+    const prev = document.getElementById('beat'+shownIdx);
+    prev.classList.remove('on');
+    prev.classList.add('leaving');
+    setTimeout(()=>{ prev.classList.remove('leaving'); }, 520);
+  }
   const node = document.getElementById('beat'+i);
+  node.classList.remove('leaving');
+  void node.offsetWidth; // force reflow so a beat re-shown after a seek re-triggers its enter transition
   node.classList.add('on');
   shownIdx = i;
   if (BEATS[i].roll){
@@ -313,7 +329,7 @@ function render(ms){
   showBeat(i, ms);
   if (activeRoll && activeRoll.i === i){
     const localMs = ms - activeRoll.start;
-    const p = Math.min(1, localMs/650);
+    const p = Math.min(1, localMs/1150);
     if (p < 1) rollText(document.getElementById('h'+i), 97, 298, p);
     else document.getElementById('h'+i).textContent = '97 → 298';
   }
