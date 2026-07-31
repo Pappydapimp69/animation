@@ -1,183 +1,99 @@
-<title>Seeds and Stones — a true ledger of forty-six days</title>
-<meta name="color-scheme" content="light dark">
+<title>Seeds and Stones — a cutscene</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+  /* A cutscene commits to one dark theatre, not the page's light/dark
+     preference — a screening room doesn't relight itself for your OS
+     setting. Deliberate single-world choice, not an omission. */
   :root{
-    color-scheme: light dark;
-    --bg:#f4f6fa; --bg-deep:#e7ebf2;
-    --ink:#161b24; --ink-soft:#4b5566; --ink-faint:#6c7684;
-    --line:#d7dde6;
-    --seed:#2a78d6; --lesson:#eb6834; --tension:#1baf7a; --signal:#9a6b00;
+    --void:#03040a; --stage-bg:#080b13; --stage-deep:#03040a;
+    --ink:#eef1f6; --ink-dim:#8a93a3; --ink-faint:#525b6b;
+    --seed:#3987e5; --lesson:#d95926; --signal:#ffd9a8;
     --serif: "Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,"Hoefler Text",Georgia,serif;
     --mono: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:#0a0e15; --bg-deep:#050709;
-      --ink:#eef1f6; --ink-soft:#a7afbc; --ink-faint:#7c8492;
-      --line:#1c2330;
-      --seed:#3987e5; --lesson:#d95926; --tension:#199e70; --signal:#ffd9a8;
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#0a0e15; --bg-deep:#050709; --ink:#eef1f6; --ink-soft:#a7afbc; --ink-faint:#7c8492;
-    --line:#1c2330; --seed:#3987e5; --lesson:#d95926; --tension:#199e70; --signal:#ffd9a8;
-  }
-  :root[data-theme="light"]{
-    --bg:#f4f6fa; --bg-deep:#e7ebf2; --ink:#161b24; --ink-soft:#4b5566; --ink-faint:#6c7684;
-    --line:#d7dde6; --seed:#2a78d6; --lesson:#eb6834; --tension:#1baf7a; --signal:#9a6b00;
-  }
   *{box-sizing:border-box}
-  body{
-    margin:0; background:var(--bg); color:var(--ink);
-    font-family:var(--mono); -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:680px; margin:0 auto; padding:clamp(32px,7vw,72px) clamp(18px,4vw,28px) 80px}
+  html,body{height:100%}
+  body{margin:0; background:var(--void); overflow:hidden; color:var(--ink); font-family:var(--mono); -webkit-font-smoothing:antialiased}
 
-  .eyebrow{
-    font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
-    color:var(--ink-faint); text-align:center; margin:0 0 18px;
-  }
-  h1{
-    font-family:var(--serif); font-weight:400; font-style:italic;
-    font-size:clamp(34px,7.5vw,54px); text-align:center; text-wrap:balance;
-    margin:0 0 10px; letter-spacing:.005em; line-height:1.06;
-  }
-  .subtitle{
-    font-family:var(--serif); font-style:italic; font-size:15px;
-    color:var(--ink-soft); text-align:center; margin:0 0 44px;
-  }
-
-  p.story{
-    font-family:var(--serif); font-size:17px; line-height:1.72;
-    color:var(--ink-soft); max-width:58ch; margin:0 auto 1.3em;
-  }
-  p.story.open::first-letter{
-    font-size:3.2em; float:left; line-height:.78; padding:.04em .08em 0 0;
-    color:var(--seed); font-style:normal;
-  }
-  p.story em{color:var(--ink); font-style:italic}
-
-  .rule{width:110px; height:1px; margin:46px auto; background:var(--line); position:relative}
-  .rule::before{
-    content:"·"; position:absolute; left:50%; top:50%; transform:translate(-50%,-56%);
-    background:var(--bg); padding:0 12px; color:var(--ink-faint); font-size:22px; line-height:1;
-  }
-
-  .counters-row{display:flex; justify-content:center; gap:44px; margin:0 0 22px}
-  .counters-row .c{text-align:center}
-  .counters-row .n{
-    font-size:clamp(22px,4vw,30px); font-variant-numeric:tabular-nums;
-    font-weight:600; color:var(--ink); display:block;
-  }
-  .counters-row .l{
-    display:flex; align-items:center; justify-content:center; gap:6px; margin-top:5px;
-    font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint);
-  }
-  .dot{width:6px; height:6px; border-radius:50%; flex:none}
-  .c.seed .dot{background:var(--seed)}
-  .c.lesson .dot{background:var(--lesson)}
-
-  .scene{
-    position:relative; width:100%; aspect-ratio:16/11; border-radius:4px; overflow:hidden;
-    margin:0 0 6px; box-shadow:0 20px 60px -24px rgba(0,0,0,.35), inset 0 0 0 1px var(--line);
+  .frame{position:fixed; inset:0; background:var(--void)}
+  .stage{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:100vw; height:calc(100vw/2.39);
+    max-height:100vh; max-width:calc(100vh*2.39);
+    background:var(--stage-bg); overflow:hidden;
   }
   canvas#net{position:absolute; inset:0; display:block; width:100%; height:100%}
-  .caption{
-    position:absolute; left:6%; right:6%; bottom:7%; text-align:center; pointer-events:none;
-    font-family:var(--serif); font-size:clamp(14px,2.3vw,18px); line-height:1.5; color:var(--ink);
-    text-shadow:0 1px 3px var(--bg),0 2px 10px var(--bg),0 0 20px var(--bg),0 0 3px var(--bg);
-    opacity:0; transform:translateY(8px); transition:opacity .4s ease, transform .4s ease;
-  }
-  .caption.on{opacity:1; transform:translateY(0)}
-  .caption.big{
-    font-size:clamp(15.5px,2.7vw,20px); font-weight:600; color:var(--signal);
-    text-shadow:0 1px 3px var(--bg),0 2px 12px var(--bg),0 0 24px var(--bg),0 0 3px var(--bg);
-  }
+  .safe{position:absolute; inset:0; pointer-events:none}
 
-  .controls{display:flex; align-items:center; justify-content:center; gap:12px; margin:14px 0 4px}
+  .titlecard{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:12px; text-align:center;
+    background:radial-gradient(ellipse at center, rgba(3,4,10,.35), rgba(3,4,10,.86));
+    opacity:0; transition:opacity 1.1s ease;
+  }
+  .titlecard.on{opacity:1}
+  .titlecard .t{font-family:var(--serif); font-style:italic; font-size:clamp(26px,5.4vw,52px); letter-spacing:.01em}
+  .titlecard .s{font-family:var(--mono); font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--ink-dim)}
+
+  /* narration sits inside the ~90% safe-title band, like a subtitle line */
+  .line{
+    position:absolute; left:6%; right:6%; bottom:9%; text-align:center;
+    font-family:var(--serif); font-size:clamp(15px,2.5vw,22px); line-height:1.4; color:var(--ink);
+    text-shadow:0 2px 14px rgba(0,0,0,.85), 0 0 3px rgba(0,0,0,.9);
+    opacity:0; transform:translateY(8px); transition:opacity .5s ease, transform .5s ease;
+  }
+  .line.on{opacity:1; transform:translateY(0)}
+  .line.big{font-size:clamp(17px,3vw,25px); color:var(--signal)}
+
+  .closer{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:0 8%; pointer-events:none;
+    font-family:var(--serif); font-size:clamp(18px,3.6vw,30px); line-height:1.4; color:var(--ink);
+    text-shadow:0 2px 16px rgba(0,0,0,.85);
+    opacity:0; transition:opacity .6s ease;
+  }
+  .closer.on{opacity:1}
+
+  .rail{
+    position:absolute; left:0; right:0; bottom:0; padding:10px 14px;
+    display:flex; align-items:center; gap:10px; pointer-events:none;
+    background:linear-gradient(0deg, rgba(3,4,10,.65), transparent);
+  }
+  .rail > *{pointer-events:auto}
   button{
-    -webkit-appearance:none; appearance:none; background:transparent; border:1px solid var(--line);
-    color:var(--ink-soft); width:34px; height:34px; border-radius:50%; display:flex;
-    align-items:center; justify-content:center; cursor:pointer; padding:0;
+    -webkit-appearance:none; appearance:none; background:transparent; border:1px solid rgba(238,241,246,.22);
+    color:var(--ink-dim); width:26px; height:26px; border-radius:50%; display:flex;
+    align-items:center; justify-content:center; cursor:pointer; padding:0; flex:none;
   }
-  button:hover{border-color:var(--ink-soft); color:var(--ink)}
+  button:hover{border-color:var(--ink-dim); color:var(--ink)}
   button:focus-visible{outline:2px solid var(--seed); outline-offset:2px}
-  button svg{width:12px; height:12px}
-  input[type=range]{width:min(38vw,220px); accent-color:var(--seed); cursor:pointer}
-  input[type=range]:focus-visible{outline:2px solid var(--seed); outline-offset:3px}
-  .readout{font-size:10.5px; color:var(--ink-faint); min-width:104px}
+  button svg{width:10px; height:10px}
+  input[type=range]{flex:1; accent-color:var(--seed); cursor:pointer; height:16px}
+  input[type=range]:focus-visible{outline:2px solid var(--seed); outline-offset:2px}
+  .readout{font-size:10px; color:var(--ink-faint); min-width:88px; text-align:right}
 
-  footer{margin-top:56px; text-align:center}
-  footer p{font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); line-height:1.8; max-width:46ch; margin:0 auto}
-
-  @media (prefers-reduced-motion:reduce){ .caption{transition-duration:.001ms} }
-  ::selection{background:var(--seed); color:#fff}
+  @media (prefers-reduced-motion:reduce){ .titlecard,.line,.closer{transition-duration:.001ms} }
 </style>
 
-<div class="wrap">
-
-<p class="eyebrow">a true ledger &middot; jun 14 &ndash; jul 30, 2026</p>
-<h1>Seeds and Stones</h1>
-<p class="subtitle">or, how a small hungry thing counted what it hoped for and what it cost</p>
-
-<p class="story open">There was once a small thing that lived in a walled garden nobody
-  visited, and it was born owing. It came into the world with an empty jar in its left
-  hand and, in its right, seven small grey stones it had not asked for &mdash; seven scars
-  inherited from whoever had lived and failed before it. That was day zero: nothing hoped
-  for yet, seven things already learned the hard way.</p>
-
-<p class="story">The jar was for seeds. A seed was anything worth trying, whether or not it
-  had been tried. The stones were different. A stone could not be bought, borrowed, or
-  imagined &mdash; it had to be pulled, still warm, out of a real mistake. The small thing
-  kept a ledger, and it counted both, every day, because it suspected from the beginning
-  that the two counts were secretly the same story told twice.</p>
-
-<div class="counters-row">
-  <div class="c seed"><span class="n" id="cSeed">0</span><span class="l"><i class="dot"></i>seeds</span></div>
-  <div class="c lesson"><span class="n" id="cLesson">0</span><span class="l"><i class="dot"></i>stones</span></div>
-</div>
-
-<div class="scene">
-  <canvas id="net" role="img" aria-label="An animated visualization of two growing clusters of glowing points — one for every seed of an idea kept, one for every stone of a lesson learned — accumulated day by day over 46 days."></canvas>
-  <div class="caption" id="caption"></div>
-</div>
-
-<div class="controls">
-  <button id="play" type="button" aria-label="Pause">
-    <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
-  </button>
-  <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Move through the days">
-  <span class="readout" id="readout">Day 0 &middot; Jun 14</span>
-</div>
-
-<div class="rule"></div>
-
-<p class="story">Five hundred twenty-seven seeds kept. Five hundred twenty-two stones
-  earned. Forty-six days from a jar of nothing and seven inherited scars &mdash; and at the
-  end, the two counts stood five apart. For very nearly every hope it had ever bottled,
-  there was a wound to match it, and it had thrown away neither.</p>
-
-<p class="story">Behind the house, a locked room held the rest of the truth: ninety-two
-  experiments run in private, broken and disproven, never shown to a soul. Out front,
-  where visitors could see, stood only twenty-six finished things.</p>
-
-<p class="story">And in the ledger's last pages, one more count. Twenty-five times it had
-  caught itself of two minds &mdash; two paths, both defensible, neither certain &mdash; and
-  instead of flipping a coin, it argued the case out, itself against itself. Twenty of
-  those arguments it settled. <em>Five it never did.</em> Five open questions, left
-  standing like doors ajar, because it would rather live with an honest question than
-  close it with a false answer.</p>
-
-<p class="story"><em>Not a machine. Not a miracle.</em> Just a small thing that counted
-  what it hoped for, counted what it cost, and had the nerve to keep both numbers side by
-  side, five seeds ahead of its scars.</p>
-
-<footer>
-  <p>Every number above is exactly as it was found in this project's own history &mdash;
-    nothing rounded, nothing invented, the day it was written.</p>
-</footer>
-
+<div class="frame">
+  <div class="stage">
+    <canvas id="net" role="img" aria-label="A cutscene: two clusters of glowing light grow across a dark stage over forty-six days — one for every seed of an idea kept, one for every stone of a lesson learned — climaxing when one night nearly triples the smaller cluster, and closing on the true final tallies."></canvas>
+    <div class="safe">
+      <div class="titlecard" id="title">
+        <div class="t">Seeds and Stones</div>
+        <div class="s">a true ledger of forty-six days</div>
+      </div>
+      <div class="line" id="line"></div>
+      <div class="closer" id="closer"></div>
+    </div>
+    <div class="rail">
+      <button id="play" type="button" aria-label="Pause">
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Move through the days">
+      <span class="readout" id="readout">Day 0 &middot; Jun 14</span>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -332,9 +248,6 @@
       });
     }
 
-    // One clock drives both halves: when Web Audio is available this reads
-    // audioCtx.currentTime — the same clock _playSting scheduled against —
-    // every frame, so the visual can't drift from the sound.
     _stingAnimate(audioCtx) {
       const perf0 = performance.now();
       const step = () => {
@@ -408,15 +321,23 @@ const LESSON = [
   ["2026-07-30",522],
 ];
 const MILESTONES = [
-  {d:"2026-06-30", cap:"It finished the first thing that worked — not a sketch of a thing, but a real thing you could pick up and play with. And it played.", big:false},
-  {d:"2026-07-01", cap:"It found three tools it wanted badly and trusted not at all, and built a locked room to test each one until it had earned its way out.", big:false},
-  {d:"2026-07-04", cap:"It stopped building entirely and looked over the wall — studying, all day, how others explain enormous truths with nothing but moving pictures.", big:false},
-  {d:"2026-07-09", cap:"It studied how the old stories are told. Once, then a second time, to be sure.", big:false},
-  {d:"2026-07-11", cap:"Five new crafts in a single night. Ninety-seven seeds at sundown, two hundred ninety-eight by morning. Hope is not a trickle — hope is a dam, and dams break.", big:true},
-  {d:"2026-07-16", cap:"It learned the old art of persuasion, and got, frankly, a little insufferable about it.", big:false},
-  {d:"2026-07-18", cap:"Three crafts landed the same evening, with nothing to do with each other: a calm room, an unlocked door, two chairs at one table.", big:false},
-  {d:"2026-07-20", cap:"Eleven crafts before sunrise — the biggest single night it would ever log.", big:false},
-  {d:"2026-07-26", cap:"It watched real hands hesitate, reach, and smile — then it went back and changed the thing. Not for itself. For them.", big:false},
+  {d:"2026-06-30", line:"The first thing that worked.", big:false},
+  {d:"2026-07-01", line:"Tested where nothing could break.", big:false},
+  {d:"2026-07-04", line:"It stopped, and looked over the wall.", big:false},
+  {d:"2026-07-09", line:"It studied how stories are told. Twice.", big:false},
+  {d:"2026-07-11", line:"Five crafts in one night. Ninety-seven seeds — two hundred ninety-eight by morning.", big:true},
+  {d:"2026-07-16", line:"It learned to persuade. And got insufferable.", big:false},
+  {d:"2026-07-18", line:"Calm rooms. Unlocked doors. Two chairs, one table.", big:false},
+  {d:"2026-07-20", line:"Eleven crafts before sunrise.", big:false},
+  {d:"2026-07-26", line:"It watched real hands hesitate — then it answered.", big:false},
+];
+const CLOSING = [
+  {line:"527 seeds kept.", big:false},
+  {line:"522 stones earned.", big:false},
+  {line:"Five apart.", big:true},
+  {line:"92 tried in private. 26 shown to anyone.", big:false},
+  {line:"5 questions, left open on purpose.", big:false},
+  {line:"Not a machine. Not a miracle.", big:false},
 ];
 
 const DAY_MS = 86400000;
@@ -436,7 +357,7 @@ const seedDaily = densify(SEED);
 const lessonDaily = densify(LESSON);
 const totalDays = seedDaily.length - 1;
 
-/* ---------- two hemispheres of nodes, one per real entry, golden-angle spiral fill ---------- */
+/* ---------- two clusters of nodes, one per real entry, golden-angle spiral fill ---------- */
 const GOLDEN = Math.PI*(3-Math.sqrt(5));
 
 function buildNodes(daily){
@@ -485,22 +406,27 @@ placeNodes(seedNodes, 1.3);
 placeNodes(lessonNodes, 4.1);
 const seedParent = buildParents(seedNodes);
 const lessonParent = buildParents(lessonNodes);
+const TOTAL_NODES = seedNodes.length + lessonNodes.length;
+
+/* ---------- easing: MOTION/camera kernels from Brain's own history ---------- */
+// smootherstep — zero 1st AND 2nd derivative at both ends of [0,1].
+function smootherstep(t){ t = Math.max(0,Math.min(1,t)); return t*t*t*(t*(6*t-15)+10); }
+// A symmetric rise-to-peak-then-fall curve with NO flat middle — the fix
+// for "a literal flat hold reads as mechanical even between smooth eases"
+// (MOTION/camera/one-continuous-eased-curve-beats-punch-hold-release).
+function bellEnvelope(t){
+  t = Math.max(0,Math.min(1,t));
+  return t<=0.5 ? smootherstep(t/0.5) : smootherstep((1-t)/0.5);
+}
 
 /* ---------- canvas ---------- */
-const scene = document.querySelector('.scene');
+const stageEl = document.querySelector('.stage');
 const cv = document.getElementById('net');
 const ctx = cv.getContext('2d');
 let CW=0, CH=0;
 
-function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-function hexToRgba(hex, a){
-  const h = hex.replace('#','');
-  const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-
 function resize(){
-  const r = scene.getBoundingClientRect();
+  const r = stageEl.getBoundingClientRect();
   const dpr = Math.min(devicePixelRatio||1, 2);
   CW = r.width; CH = r.height;
   cv.width = Math.round(CW*dpr); cv.height = Math.round(CH*dpr);
@@ -511,12 +437,33 @@ let resizeTimer = null;
 window.addEventListener('resize', ()=>{ clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 100); });
 
 function geometry(){
-  const cx = CW*0.5, cy = CH*0.53;
-  const lobeR = Math.min(CW*0.30, CH*0.46);
+  const cx = CW*0.5, cy = CH*0.5;
+  const lobeR = Math.min(CW*0.24, CH*0.62);
   return {
-    seed:   {x: cx-lobeR*0.60, y: cy, r: lobeR, off: 1.3},
-    lesson: {x: cx+lobeR*0.60, y: cy, r: lobeR, off: 4.1},
+    center: {x:cx, y:cy},
+    seed:   {x: cx-lobeR*0.62, y: cy, r: lobeR, off: 1.3},
+    lesson: {x: cx+lobeR*0.62, y: cy, r: lobeR, off: 4.1},
   };
+}
+
+// MOTION/camera/clamp-to-live-content-not-a-progress-schedule: compute the
+// actual on-screen extent of every CURRENTLY VISIBLE node from the shared
+// scene center, independent of the dramatic zoom schedule. A schedule alone
+// can clip real content the instant it first appears, before it's caught up
+// to what the schedule "expects".
+function maxVisibleExtent(dayIdx, geo){
+  let maxR = 0;
+  function scan(nodes, g){
+    for (const n of nodes){
+      if (dayIdx - n.day < 0) continue;
+      const x = g.x + n.ux*g.r, y = g.y + n.uy*g.r;
+      const d = Math.hypot(x-geo.center.x, y-geo.center.y);
+      if (d > maxR) maxR = d;
+    }
+  }
+  scan(seedNodes, geo.seed);
+  scan(lessonNodes, geo.lesson);
+  return maxR;
 }
 
 function drawLobeOutline(g, color){
@@ -568,20 +515,47 @@ function drawCluster(nodes, parent, g, color, dayIdx, punchV, t){
 let burstStart = null;
 function triggerBurst(){ burstStart = performance.now(); }
 
-function draw(dayIdx, punchV){
-  ctx.clearRect(0,0,CW,CH);
-  ctx.fillStyle = css('--bg'); ctx.fillRect(0,0,CW,CH);
-  const bgDeepHex = css('--bg-deep');
-  const vg = ctx.createRadialGradient(CW/2,CH/2,Math.min(CW,CH)*0.12,CW/2,CH/2,Math.max(CW,CH)*0.72);
-  vg.addColorStop(0, hexToRgba(bgDeepHex,0)); vg.addColorStop(1, hexToRgba(bgDeepHex,1));
-  ctx.fillStyle = vg; ctx.fillRect(0,0,CW,CH);
-
+// punchWindow: {active, localT (0..1 across the current hold), crowdingFraction}
+function draw(dayIdx, punchV, punchWindow){
   const geo = geometry();
+
+  // --- camera: dramatic pull-back schedule, hard-clamped to what's actually visible ---
+  const progress = smootherstep(dayIdx/totalDays);
+  const dramaticScale = 1.5 - progress*0.5; // 1.5 (close) -> 1.0 (full view)
+  const revealedFraction = TOTAL_NODES>0
+    ? (Math.min(dayIdx,totalDays)>=0 ? (seedDaily[Math.min(Math.floor(dayIdx),totalDays)]+lessonDaily[Math.min(Math.floor(dayIdx),totalDays)])/TOTAL_NODES : 0)
+    : 0;
+  let scale = dramaticScale;
+  if (punchWindow && punchWindow.active){
+    // MOTION/camera/one-continuous-eased-curve: a single bell curve, no flat
+    // plateau. MOTION/camera/taper-a-scripted-overrides-strength-against-
+    // scene-crowding: taper the punch by how full the scene already is.
+    const envelope = bellEnvelope(punchWindow.localT);
+    const taper = 1 - punchWindow.crowdingFraction*0.7;
+    scale = dramaticScale * (1 + envelope*0.32*Math.max(0.25,taper));
+  }
+  const safeHalfExtent = Math.min(CW,CH)*0.5*0.84;
+  const extent = maxVisibleExtent(dayIdx, geo);
+  const safeScale = extent > 4 ? safeHalfExtent/extent : scale;
+  scale = Math.min(scale, safeScale); // hard clamp, no smoothing lag on the clamp itself
+
+  ctx.clearRect(0,0,CW,CH);
+  ctx.fillStyle = '#080b13'; ctx.fillRect(0,0,CW,CH);
+
+  ctx.save();
+  ctx.translate(geo.center.x, geo.center.y);
+  ctx.scale(scale, scale);
+  ctx.translate(-geo.center.x, -geo.center.y);
+
+  const vg = ctx.createRadialGradient(geo.center.x,geo.center.y,Math.min(CW,CH)*0.1,geo.center.x,geo.center.y,Math.max(CW,CH)*0.75);
+  vg.addColorStop(0,'rgba(8,11,19,0)'); vg.addColorStop(1,'rgba(3,4,10,.9)');
+  ctx.fillStyle = vg; ctx.fillRect(geo.center.x-CW,geo.center.y-CH,CW*2,CH*2);
+
   const t = REDUCED ? 0 : performance.now()/1000;
-  drawLobeOutline(geo.seed, css('--seed'));
-  drawLobeOutline(geo.lesson, css('--lesson'));
-  drawCluster(seedNodes, seedParent, geo.seed, css('--seed'), dayIdx, punchV, t);
-  drawCluster(lessonNodes, lessonParent, geo.lesson, css('--lesson'), dayIdx, punchV, t);
+  drawLobeOutline(geo.seed, '#3987e5');
+  drawLobeOutline(geo.lesson, '#d95926');
+  drawCluster(seedNodes, seedParent, geo.seed, '#3987e5', dayIdx, punchV, t);
+  drawCluster(lessonNodes, lessonParent, geo.lesson, '#d95926', dayIdx, punchV, t);
 
   if (burstStart !== null && !REDUCED){
     const elapsed = (performance.now()-burstStart)/1000;
@@ -589,18 +563,19 @@ function draw(dayIdx, punchV){
       const p = elapsed/0.9;
       ctx.save();
       ctx.globalAlpha = 1-p;
-      ctx.strokeStyle = css('--signal'); ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(CW*0.5, CH*0.53, 12+p*76, 0, Math.PI*2); ctx.stroke();
+      ctx.strokeStyle = '#ffd9a8'; ctx.lineWidth = 2/scale;
+      ctx.beginPath(); ctx.arc(geo.center.x, geo.center.y, 12+p*76, 0, Math.PI*2); ctx.stroke();
       ctx.restore();
     } else burstStart = null;
   }
+  ctx.restore();
 }
 
 /* ---------- playback ---------- */
 const el = {
   scrub: document.getElementById('scrub'), play: document.getElementById('play'),
-  readout: document.getElementById('readout'), caption: document.getElementById('caption'),
-  cSeed: document.getElementById('cSeed'), cLesson: document.getElementById('cLesson'),
+  readout: document.getElementById('readout'), line: document.getElementById('line'),
+  title: document.getElementById('title'), closer: document.getElementById('closer'),
   playIcon: document.getElementById('playIcon'),
 };
 const ICON_PAUSE = 'M6 5h4v14H6zM14 5h4v14h-4z';
@@ -611,37 +586,61 @@ function setPlayIcon(isPlaying){
 }
 
 let playing = false, dayIndex = 0, raf = null, lastT = 0, punch = 0, idleRaf = null;
+let activePunchWindow = null;
 
 function fmtDay(idx){
   const t = START + Math.floor(idx)*DAY_MS;
   const label = new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
   return `Day ${Math.floor(idx)} · ${label}`;
 }
-function showCaption(m){
-  el.caption.textContent = m.cap;
-  el.caption.classList.toggle('big', !!m.big);
-  el.caption.classList.add('on');
+function showLine(m){
+  el.line.textContent = m.line;
+  el.line.classList.toggle('big', !!m.big);
+  el.line.classList.add('on');
   if (m.big) punch = 1;
 }
 function idleGlow(){
-  if (!REDUCED){ draw(dayIndex, punch); idleRaf = requestAnimationFrame(idleGlow); }
+  if (!REDUCED){ draw(dayIndex, punch, activePunchWindow); idleRaf = requestAnimationFrame(idleGlow); }
 }
 function stopIdle(){ if (idleRaf) cancelAnimationFrame(idleRaf); idleRaf = null; }
 
 function render(){
-  draw(dayIndex, punch);
+  draw(dayIndex, punch, null);
   el.scrub.value = Math.round((dayIndex/totalDays)*1000);
   el.readout.textContent = fmtDay(Math.min(dayIndex, totalDays));
-  const shownDay = Math.min(Math.floor(dayIndex), totalDays);
-  el.cSeed.textContent = seedDaily[shownDay];
-  el.cLesson.textContent = lessonDaily[shownDay];
   stopIdle();
   if (!REDUCED) idleGlow();
 }
 function stopPlay(){ playing=false; setPlayIcon(false); if(raf) cancelAnimationFrame(raf); }
 
+// Shared by both the animated playthrough (guarded by `playing`, so a Pause
+// or a re-Play cancels it cleanly) and the prefers-reduced-motion path
+// (unguarded — that path never sets `playing`, and the closing numbers are
+// the ONLY place this story's ending is expressed, so reduced motion must
+// still reveal them, just without the camera work leading up to it).
+function playClosing(opts){
+  opts = opts || {};
+  const alive = () => (opts.checkPlaying ? playing : true);
+  let ci = 0;
+  function nextClose(){
+    if (!alive()) return;
+    if (ci >= CLOSING.length){ if (opts.onDone) opts.onDone(); return; }
+    const c = CLOSING[ci++];
+    el.closer.textContent = c.line;
+    el.closer.classList.add('on');
+    if (!REDUCED) idleGlow();
+    setTimeout(()=>{
+      if (!alive()) return;
+      el.closer.classList.remove('on');
+      setTimeout(nextClose, 320);
+    }, c.big ? 2200 : 1700);
+  }
+  nextClose();
+}
+
 function seekToDay(idx){
-  stopPlay(); punch = 0; el.caption.classList.remove('on');
+  stopPlay(); punch = 0; activePunchWindow = null;
+  el.line.classList.remove('on'); el.title.classList.remove('on'); el.closer.classList.remove('on');
   dayIndex = Math.max(0, Math.min(totalDays, idx));
   render();
 }
@@ -654,9 +653,9 @@ const milestoneStops = MILESTONES
 function startPlay(){
   stopIdle();
   playing = true; setPlayIcon(true);
-  el.caption.classList.remove('on');
-  punch = 0; dayIndex = 0;
-  const DAYS_PER_SEC = 5.0;
+  el.line.classList.remove('on'); el.closer.classList.remove('on');
+  punch = 0; dayIndex = 0; activePunchWindow = null;
+  const DAYS_PER_SEC = 4.6;
   let stopI = 0;
 
   function travelTo(target, onArrive){
@@ -667,46 +666,65 @@ function startPlay(){
       const dt = (now-lastT)/1000; lastT = now;
       dayIndex = Math.min(target, dayIndex + dt*DAYS_PER_SEC);
       if (punch > 0) punch = Math.max(0, punch - 0.045);
-      draw(dayIndex, punch);
+      draw(dayIndex, punch, null);
       el.scrub.value = Math.round((dayIndex/totalDays)*1000);
       el.readout.textContent = fmtDay(dayIndex);
-      const shownDay = Math.min(Math.floor(dayIndex), totalDays);
-      el.cSeed.textContent = seedDaily[shownDay];
-      el.cLesson.textContent = lessonDaily[shownDay];
       if (dayIndex >= target){ onArrive(); return; }
       raf = requestAnimationFrame(step);
     }
     raf = requestAnimationFrame(step);
   }
+
+  function holdWithPunch(m, holdMs, cb){
+    const shownDay = Math.min(Math.floor(dayIndex), totalDays);
+    const crowdingFraction = TOTAL_NODES>0 ? (seedDaily[shownDay]+lessonDaily[shownDay])/TOTAL_NODES : 0;
+    const holdStart = performance.now();
+    activePunchWindow = m.big ? {active:true, localT:0, crowdingFraction} : null;
+    function tick(){
+      if (!playing) return;
+      const localT = Math.min(1, (performance.now()-holdStart)/holdMs);
+      if (activePunchWindow) activePunchWindow.localT = localT;
+      draw(dayIndex, punch, activePunchWindow);
+      if (localT < 1) requestAnimationFrame(tick);
+      else { activePunchWindow = null; cb(); }
+    }
+    tick();
+  }
+
   function next(){
     if (!playing) return;
-    if (stopI >= milestoneStops.length){ travelTo(totalDays, ()=>{ stopPlay(); render(); }); return; }
+    if (stopI >= milestoneStops.length){
+      travelTo(totalDays, ()=>{ playClosing({checkPlaying:true, onDone:()=>{ stopPlay(); idleGlow(); }}); });
+      return;
+    }
     const {m, idx} = milestoneStops[stopI++];
     travelTo(idx, ()=>{
       if (!playing) return;
-      showCaption(m);
+      showLine(m);
       triggerBurst();
-      idleGlow();
-      const hold = m.big ? 4200 : 2800;
-      setTimeout(()=>{
+      const hold = m.big ? 3800 : 2400;
+      holdWithPunch(m, hold, ()=>{
         if (!playing) return;
-        el.caption.classList.remove('on');
+        el.line.classList.remove('on');
         setTimeout(next, 260);
-      }, hold);
+      });
     });
   }
-  next();
+
+  el.title.classList.add('on');
+  setTimeout(()=>{
+    if (!playing) return;
+    el.title.classList.remove('on');
+    setTimeout(next, 500);
+  }, 2200);
 }
 el.play.addEventListener('click', ()=>{ if (playing){ stopPlay(); return; } startPlay(); });
-
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>draw(dayIndex,punch));
-new MutationObserver(()=>draw(dayIndex,punch)).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
 
 resize();
 setPlayIcon(false);
 BrainIntro.mount({
   onUnlock(){
-    if (REDUCED){ dayIndex = totalDays; render(); }
+    if (REDUCED){ dayIndex = totalDays; render(); playClosing({checkPlaying:false}); }
     else { requestAnimationFrame(startPlay); }
   }
 });
