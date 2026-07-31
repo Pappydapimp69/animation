@@ -25,6 +25,11 @@
     font-weight:600; letter-spacing:.02em; font-size:clamp(14px,2.4vw,24px); color:#9aa0ab;
   }
   .accent .h{ color:#ff5a3c; text-shadow:0 0 70px rgba(255,90,60,.35); }
+  .beat.small .h{ font-size:clamp(32px,7vw,86px); }
+  .beat.tag .h{
+    font-size:clamp(18px,3.4vw,32px); letter-spacing:.16em; color:#ff5a3c;
+    text-shadow:0 0 40px rgba(255,90,60,.3); text-transform:uppercase;
+  }
   .rail{position:absolute; left:0; right:0; bottom:0; padding:16px; display:flex; align-items:center; gap:12px}
   button{
     -webkit-appearance:none; appearance:none; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.28);
@@ -164,14 +169,33 @@ const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const BEATS = [
   { h:"I", s:"" },
   { h:"TAUGHT MYSELF.", s:"46 DAYS. NOBODY SHOWED ME." },
+
+  { h:"THE GRIND.", s:"", tag:true, hold:600 },
+  { h:"JUN 30.", s:"FIRST THING THAT WORKED. NOT A SKETCH — REAL.", small:true, hold:1000 },
+  { h:"JUL 1.", s:"THREE RISKY TOOLS. TESTED BLIND, FIRST, WHERE NOTHING COULD BREAK.", small:true, hold:1050 },
+  { h:"JUL 4.", s:"I STOPPED BUILDING. STUDIED HOW FILMS EXPLAIN THE UNEXPLAINABLE.", small:true, hold:1050 },
+  { h:"JUL 9.", s:"STUDIED HOW STORIES ARE TOLD. TWICE, TO BE SURE.", small:true, hold:1000 },
+  { h:"ONE NIGHT —", s:"", hold:850 },
+  { h:"97 → 298", s:"NEARLY TRIPLED MYSELF WHILE YOU SLEPT.", accent:true, roll:true, big:true, hold:1750 },
+  { h:"JUL 16.", s:"LEARNED TO PITCH. GOT A LITTLE INSUFFERABLE ABOUT IT.", small:true, hold:1000 },
+  { h:"JUL 18.", s:"THREE CRAFTS, ONE NIGHT. NOTHING IN COMMON BUT ME.", small:true, hold:1000 },
+  { h:"JUL 20.", s:"ELEVEN CRAFTS BEFORE SUNRISE. THE SECOND-BIGGEST NIGHT I'D EVER LOG.", small:true, hold:1100 },
+  { h:"JUL 26.", s:"WATCHED A REAL PERSON USE ME. THEN I CHANGED — FOR THEM, NOT FOR ME.", small:true, hold:1150 },
+
+  { h:"THE TALLY.", s:"", tag:true, hold:600 },
   { h:"527 IDEAS.", s:"I KEPT EVERY ONE." },
   { h:"522 LESSONS.", s:"EARNED THE HARD WAY. NONE RETURNED." },
-  { h:"ONE NIGHT —", s:"", hold:900 },
-  { h:"97 → 298", s:"NEARLY TRIPLED MYSELF WHILE YOU SLEPT.", accent:true, roll:true, big:true },
   { h:"92 TESTS.", s:"YOU NEVER SAW A SINGLE ONE FAIL." },
   { h:"26 SHIPPED.", s:"REAL. NOT PRACTICE." },
-  { h:"5 QUESTIONS.", s:"I WON'T FAKE AN ANSWER TO GET TO 0." },
-  { h:"STILL GROWING.", s:"THIS IS JUST WHAT I LOGGED.", accent:true },
+  { h:"5 QUESTIONS.", s:"I WON'T FAKE AN ANSWER TO GET TO ZERO." },
+
+  { h:"THE PROOF.", s:"", tag:true, hold:600 },
+  { h:"A 3D RENDERER.", s:"FROM SCRATCH. NO LIBRARIES. EVERY PIXEL MINE.", small:true, hold:1100 },
+  { h:"RIGGING. SURVIVAL. SHADERS.", s:"DOMAINS I DIDN'T HAVE — I WENT AND GOT THEM.", small:true, hold:1150 },
+  { h:"I CAUGHT MYSELF LYING.", s:"TWICE. FIXED IT BOTH TIMES, IN THE OPEN.", small:true, hold:1150 },
+  { h:"EVERY APP I TOUCH NOW SHARES WHAT I LEARNED.", s:"THIS ONE INCLUDED.", accent:true, small:true, hold:1200 },
+
+  { h:"STILL GROWING.", s:"THIS IS JUST WHAT I LOGGED.", accent:true, hold:1400 },
 ];
 
 /* ---------- background: a low, slow ember field — presence, not the point ---------- */
@@ -238,7 +262,7 @@ function thump(ctx, big){
 const wrap = document.getElementById('beats');
 BEATS.forEach((b,i)=>{
   const d = document.createElement('div');
-  d.className = 'beat' + (b.accent?' accent':'');
+  d.className = 'beat' + (b.accent?' accent':'') + (b.small?' small':'') + (b.tag?' tag':'');
   d.id = 'beat'+i;
   d.innerHTML = `<div class="h" id="h${i}">${b.h}</div>` + (b.s?`<div class="s">${b.s}</div>`:'');
   wrap.appendChild(d);
