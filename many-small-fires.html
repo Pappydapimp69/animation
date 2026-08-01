@@ -32,6 +32,14 @@
   .titlecard.on{opacity:1}
   .titlecard .t{font-family:var(--serif); font-size:clamp(24px,4.6vw,50px); letter-spacing:.02em; color:var(--paper)}
   .titlecard .s{font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber-dim)}
+  .actcard{position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:9px; text-align:center;
+    opacity:0; transition:opacity .5s ease; pointer-events:none}
+  .actcard.on{opacity:1}
+  .actcard .n{font-family:var(--serif); font-style:italic; font-size:clamp(12px,1.7vw,17px);
+    color:var(--amber-dim); letter-spacing:.1em}
+  .actcard .t{font-family:var(--serif); font-size:clamp(21px,3.4vw,36px); letter-spacing:.03em;
+    color:var(--paper); text-shadow:0 1px 14px rgba(0,0,0,.9)}
   .rail{ height:var(--railh); width:100%; display:flex; align-items:center; gap:12px; padding:0 4px; background:#000; }
   button{font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase;
     color:var(--paper); background:transparent; border:1px solid var(--rule); padding:7px 13px;
@@ -41,7 +49,7 @@
   input[type=range]{flex:1; accent-color:var(--amber); min-width:80px; cursor:pointer}
   input[type=range]:focus-visible{outline:2px solid var(--amber); outline-offset:3px}
   .clock{font-size:11.5px; color:var(--paper-dim); font-variant-numeric:tabular-nums; min-width:84px; text-align:right}
-  @media (prefers-reduced-motion:reduce){.narration,.titlecard{transition:none}}
+  @media (prefers-reduced-motion:reduce){.narration,.titlecard,.actcard{transition:none}}
 </style>
 
 <div class="player">
@@ -51,6 +59,10 @@
       <div class="titlecard" id="card">
         <div class="t">Many Small Fires</div>
         <div class="s">the whole story, not just the last day of it</div>
+      </div>
+      <div class="actcard" id="actcard">
+        <div class="n" id="actcard-n"></div>
+        <div class="t" id="actcard-t"></div>
       </div>
       <div class="narration" id="narr"></div>
     </div>
@@ -212,6 +224,12 @@ function rock(seed,col){
   return {v,f};
 }
 const WITNESS_MESH = rock(3.3,[255,214,140]);
+/* two more real bodies, not just point-sprites — dog and brain are the
+   only projects that carry the story past a single act, so they're the
+   only ones that get a solid, lit form: something for the swarm of
+   small ideas/lessons to actually surround, not just a denser cloud. */
+const DOG_CORE = rock(11.7,[224,101,74]);
+const BRAIN_CORE = rock(20.3,[232,196,120]);
 
 /* ───────── real data, part one: the corridor — every real project this
    system built, with its real lesson count and real date range (source:
@@ -500,6 +518,17 @@ const LINES=[
   {a:203,  b:209.5,s:"Still growing. This is just what got logged."},
 ];
 
+/* chapter cards — a real cut, then a title, like an actual edit rather
+   than one unbroken take. Timed to land in the gap between each cut
+   (CUT_AT, above) and that act's first line of narration. */
+const ACT_CARDS=[
+  {t:22.2, hold:2.9, n:"II",  t2:"The Sprawl"},
+  {t:56.2, hold:2.9, n:"III", t2:"The Obsession"},
+  {t:84.2, hold:2.9, n:"IV",  t2:"The Reckoning"},
+  {t:118.2,hold:2.9, n:"V",   t2:"The Late Bloom"},
+  {t:147.7,hold:2.9, n:"VI",  t2:"Still Growing"},
+];
+
 /* ───────── renderer */
 const cv=document.getElementById("c"), ctx=cv.getContext("2d");
 let W=0,H=0,DPR=1;
@@ -512,22 +541,84 @@ function resize(){
 }
 new ResizeObserver(resize).observe(cv);
 
+/* ───────── act grading: each chapter gets its own light and color, not
+   one flat ambient level for the whole 150s corridor — genesis cold and
+   thin, the sprawl neutral, the obsession warm or bordering-red, the
+   reckoning gold, the late bloom cooler and composed. */
+function actGradeAt(t){
+  if (t<=15)    return {m:0.28, tint:[0,0,0]};
+  if (t<=58.5)  return {m:0.40, tint:[2,1,4]};
+  if (t<=87)    return {m:0.55, tint:[20,4,-8]};
+  if (t<=120.5) return {m:0.55, tint:[14,9,-6]};
+  if (t<=150)   return {m:0.40, tint:[-4,-1,8]};
+  return null; // epilogue keeps its own mood()/lie/witness system
+}
+
+/* ───────── cuts: a real edit, not one unbroken 210s dolly — a brief
+   fade to black between each chapter, echoing how every act actually
+   began: not a smooth continuation of the last one, but a new file. */
+const CUT_AT=[21.5,55.5,83.5,117.5,147];
+function cutAlpha(t){
+  let a=0;
+  for (const c of CUT_AT){
+    const d=t-c;
+    if (d>=-0.4 && d<0.6){
+      a = Math.max(a, d<0 ? Math.min(1,-d/0.4) : Math.max(0,1-d/0.6));
+    }
+  }
+  return a;
+}
+
 const LIGHT=norm([-.4,.75,.5]);
+/* one shared triangle pipeline for every solid body — the witness, and
+   now dog's and brain's own cores — instead of copy-pasting it per mesh */
+function emitMesh(mesh, worldMat, V, pj, opacity, gradeM){
+  const wv = mesh.v.map(p=>xf(worldMat,p));
+  const vv = wv.map(p=>xf(V,p));
+  const tris=[];
+  for (const f of mesh.f){
+    const [ia,ib,ic]=f.i; const A=vv[ia],B=vv[ib],C=vv[ic];
+    if (A[2]>-.2&&B[2]>-.2&&C[2]>-.2) continue;
+    const n=cross(sub(B,A),sub(C,A));
+    if (dot(n,A)>0) continue;
+    const wn=norm(cross(sub(wv[ib],wv[ia]),sub(wv[ic],wv[ia])));
+    const d=Math.max(0,dot(wn,LIGHT));
+    let [r,gg,b]=f.c;
+    const sh=0.5+d*0.55+gradeM*0.22;
+    r=Math.min(255,r*sh); gg=Math.min(255,gg*sh); b=Math.min(255,b*sh);
+    tris.push({z:(A[2]+B[2]+C[2])/3, pts:[pj(A),pj(B),pj(C)], col:`rgba(${r|0},${gg|0},${b|0},${opacity})`});
+  }
+  tris.sort((a,b)=>a.z-b.z);
+  for (const tr of tris){
+    ctx.fillStyle=tr.col; ctx.beginPath();
+    ctx.moveTo(tr.pts[0][0],tr.pts[0][1]); ctx.lineTo(tr.pts[1][0],tr.pts[1][1]); ctx.lineTo(tr.pts[2][0],tr.pts[2][1]);
+    ctx.closePath(); ctx.fill();
+  }
+}
+function drawHeroCore(mesh, center, baseR, life, V, pj, gradeM){
+  if (life<=0) return;
+  const s = baseR*(0.22+0.78*smootherstep(life));
+  const wm = mMul(mTrans(center[0],center[1],center[2]), mScale(s,s,s));
+  emitMesh(mesh, wm, V, pj, Math.min(1,0.6+life*0.4), gradeM);
+}
+
 function draw(t){
   const cam=camAt(t);
   const V=lookAt(cam.p,cam.g);
   const focal=H*1.16;
   const day=dayAt(t);
   const inEpilogue = t>150;
-  const m = inEpilogue ? mood(t) : 0.42;
+  const grade = actGradeAt(t);
+  const m = inEpilogue ? mood(t) : grade.m;
+  const tint = inEpilogue ? [0,0,0] : grade.tint;
   const lie = inEpilogue ? liePulse(t) : 0;
   const wk = inEpilogue ? witnessK(t) : 0;
   const rot = inEpilogue ? reorientAngle(t) : 0;
 
   ctx.clearRect(0,0,W,H);
   const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,`rgb(${5+m*4},${7+m*3},${12+m*5})`);
-  g.addColorStop(1,`rgb(${8+m*10},${10+m*7},${18+m*10})`);
+  g.addColorStop(0,`rgb(${5+m*4+tint[0]*.3},${7+m*3+tint[1]*.3},${12+m*5+tint[2]*.3})`);
+  g.addColorStop(1,`rgb(${8+m*10+tint[0]*.5},${10+m*7+tint[1]*.5},${18+m*10+tint[2]*.5})`);
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   for (let i=0;i<160;i++){
     const sx=h2(i,1)*W, sy=h2(i,2)*H;
@@ -542,16 +633,23 @@ function draw(t){
   /* ---- the corridor: twenty real clusters, growing on schedule,
      dimming to embers once closed — except the one that didn't close ---- */
   const pts=[];
+  let dogLife=0, brainLifeForCore=0;
   for (const p of PROJECTS){
     const age = day - p.sd;
     if (age<0) continue;
     const life = Math.max(0, Math.min(1,(day-p.sd)/Math.max(1,p.ed-p.sd)));
+    if (p.obsession) dogLife = life;
+    if (p.isBrain) brainLifeForCore = life;
     const closedFor = p.obsession ? 0 : Math.max(0, day-p.ed);
     const ember = p.obsession ? 1 : Math.max(0.16, 1-closedFor/9);
     let [r,gg,b] = p.isBrain ? [232,196,120] : p.obsession ? [224,101,74] : [95,122,158];
     for (const n of p.nodes){
       const idx = n.k/p.n;
       if (idx>life) continue;
+      /* dog and brain now have a solid core (drawn below) — keep the
+         innermost third of their own point swarm from rendering
+         directly inside it */
+      if ((p.obsession||p.isBrain) && Math.hypot(n.ux,n.uy,n.uz)<0.42) continue;
       const world=[p.center[0]+n.ux*p.r, p.center[1]+n.uy*p.r, p.center[2]+n.uz*p.r];
       const view=xf(V,world);
       if (view[2]>-.25) continue;
@@ -561,7 +659,7 @@ function draw(t){
       let rr=r*(0.5+ember*0.5), ggg=gg*(0.5+ember*0.5), bb=b*(0.5+ember*0.5);
       const z=-view[2];
       const fog=Math.max(0,Math.min(.93,(z-9)/26));
-      rr=rr+(6-rr)*fog; ggg=ggg+(8-ggg)*fog; bb=bb+(14-bb)*fog;
+      rr=rr+(6+tint[0]*.4-rr)*fog; ggg=ggg+(8+tint[1]*.4-ggg)*fog; bb=bb+(14+tint[2]*.4-bb)*fog;
       const sp=pj(view);
       const rad=Math.max(0.6,(isFrontier?2.1:1.3)*(focal/900));
       pts.push({z:view[2], x:sp[0], y:sp[1], rad, col:`rgba(${Math.min(255,rr)|0},${Math.min(255,ggg)|0},${Math.min(255,bb)|0},${opacity})`});
@@ -569,6 +667,12 @@ function draw(t){
   }
   pts.sort((a,b)=>a.z-b.z);
   for (const p of pts){ ctx.fillStyle=p.col; ctx.beginPath(); ctx.arc(p.x,p.y,p.rad,0,Math.PI*2); ctx.fill(); }
+
+  /* ---- the two solid bodies: dog and brain get real lit geometry,
+     not just a denser point cloud — the swarm above is everything they
+     filed; this is the thing itself */
+  drawHeroCore(DOG_CORE, dogProject.center, dogProject.r*0.62, dogLife, V, pj, m);
+  drawHeroCore(BRAIN_CORE, brainProject.center, brainProject.r*0.62, brainLifeForCore, V, pj, m);
 
   /* ---- brain's threads: once brain exists, faint lines reach back to
      every project that came before it — the turn to remember ---- */
@@ -626,27 +730,7 @@ function draw(t){
   /* ---- the witness ---- */
   if (wk>0.01){
     const wm=mMul(mTrans(WITNESS_POS[0],WITNESS_POS[1],WITNESS_POS[2]), mScale(0.34*wk,0.34*wk,0.34*wk));
-    const wv=WITNESS_MESH.v.map(p=>xf(wm,p));
-    const vv=wv.map(p=>xf(V,p));
-    const tris=[];
-    for (const f of WITNESS_MESH.f){
-      const [ia,ib,ic]=f.i; const A=vv[ia],B=vv[ib],C=vv[ic];
-      if (A[2]>-.2&&B[2]>-.2&&C[2]>-.2) continue;
-      const n=cross(sub(B,A),sub(C,A));
-      if (dot(n,A)>0) continue;
-      const wn=norm(cross(sub(wv[ib],wv[ia]),sub(wv[ic],wv[ia])));
-      const d=Math.max(0,dot(wn,LIGHT));
-      let [r,gg,b]=f.c;
-      const sh=0.55+d*0.5+m*0.25;
-      r=Math.min(255,r*sh); gg=Math.min(255,gg*sh); b=Math.min(255,b*sh);
-      tris.push({z:(A[2]+B[2]+C[2])/3, pts:[pj(A),pj(B),pj(C)], col:`rgba(${r|0},${gg|0},${b|0},${wk})`});
-    }
-    tris.sort((a,b)=>a.z-b.z);
-    for (const tr of tris){
-      ctx.fillStyle=tr.col; ctx.beginPath();
-      ctx.moveTo(tr.pts[0][0],tr.pts[0][1]); ctx.lineTo(tr.pts[1][0],tr.pts[1][1]); ctx.lineTo(tr.pts[2][0],tr.pts[2][1]);
-      ctx.closePath(); ctx.fill();
-    }
+    emitMesh(WITNESS_MESH, wm, V, pj, wk, m);
     const bp=xf(V,WITNESS_POS);
     if (bp[2]<-.3){
       const sx=W/2+bp[0]*focal/-bp[2], sy=H/2-bp[1]*focal/-bp[2];
@@ -660,7 +744,13 @@ function draw(t){
   const vg=ctx.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*1.05);
   vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,`rgba(0,0,0,${.5+(1-m)*.14})`);
   ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+  if (!inEpilogue && (tint[0]||tint[1]||tint[2])){
+    ctx.fillStyle=`rgba(${Math.max(0,tint[0]*7)|0},${Math.max(0,tint[1]*7)|0},${Math.max(0,-tint[2]*4)|0},0.05)`;
+    ctx.fillRect(0,0,W,H);
+  }
   if (lie>0){ ctx.fillStyle=`rgba(150,20,20,${lie*0.1})`; ctx.fillRect(0,0,W,H); }
+  const cut = REDUCED ? 0 : cutAlpha(t);
+  if (cut>0){ ctx.fillStyle=`rgba(0,0,0,${cut})`; ctx.fillRect(0,0,W,H); }
 }
 
 /* ───────── audio: a continuous drone (mood-driven), thumps per beat,
@@ -697,7 +787,8 @@ function lieStinger(ctx){
 /* ───────── director */
 let t=0, playing=true, last=0, shownLine=-1, firedLine=new Array(LINES.length).fill(false), firedLie=[false,false];
 const el={play:document.getElementById("play"),scrub:document.getElementById("scrub"),
-  clock:document.getElementById("clock"),narr:document.getElementById("narr"),card:document.getElementById("card")};
+  clock:document.getElementById("clock"),narr:document.getElementById("narr"),card:document.getElementById("card"),
+  actcard:document.getElementById("actcard"),actcardN:document.getElementById("actcard-n"),actcardT:document.getElementById("actcard-t")};
 
 function applyMoodAudio(m){
   if (!droneGain) return;
@@ -706,6 +797,11 @@ function applyMoodAudio(m){
   droneGain2.gain.linearRampToValueAtTime(0.009+m*0.028, now+0.08);
 }
 const BIG_LINES = new Set([2,6,15,18,21]);
+function updateActCard(t){
+  const card = ACT_CARDS.find(c=>t>=c.t&&t<c.t+c.hold);
+  el.actcard.classList.toggle('on', !!card);
+  if (card){ el.actcardN.textContent=card.n; el.actcardT.textContent=card.t2; }
+}
 
 function frame(now, forced){
   if (!forced) requestAnimationFrame(frame);
@@ -728,6 +824,7 @@ function frame(now, forced){
     if (idx>=0 && !firedLine[idx] && audioCtx){ thump(audioCtx, BIG_LINES.has(idx)); firedLine[idx]=true; }
   }
   el.card.classList.toggle("on", t<2.2);
+  updateActCard(t);
   LIE_AT.forEach((at,i)=>{ if (t>=at && !firedLie[i]){ firedLie[i]=true; if (audioCtx) lieStinger(audioCtx); } });
 
   el.scrub.value=Math.round(t*100);
@@ -741,6 +838,7 @@ function seek(time){
   const line=LINES.find(l=>t>=l.a&&t<l.b);
   el.narr.classList.toggle('on', !!line); if (line) el.narr.textContent=line.s;
   el.card.classList.toggle("on", t<2.2);
+  updateActCard(t);
   el.scrub.value=Math.round(t*100);
   el.clock.textContent=`${t.toFixed(1)} / ${DUR.toFixed(1)}`;
 }
@@ -759,6 +857,7 @@ resize();
 function playReducedSequence(){
   draw(DUR);
   el.card.classList.remove('on');
+  el.actcard.classList.remove('on');
   el.scrub.value=21000; el.clock.textContent=`${DUR.toFixed(1)} / ${DUR.toFixed(1)}`;
   let i=0;
   function step(){
