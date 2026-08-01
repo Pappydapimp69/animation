@@ -796,35 +796,108 @@ function draw(t){
   if (cut>0){ ctx.fillStyle=`rgba(0,0,0,${cut})`; ctx.fillRect(0,0,W,H); }
 }
 
-/* ───────── audio: a continuous drone (mood-driven), thumps per beat,
-   a stinger for each lie-pulse — same mechanism as the self-portrait */
-let audioCtx=null, droneGain=null, droneGain2=null;
+/* ───────── audio: a mastered bus (dry + synthesized-IR reverb send,
+   shelving EQ, soft-clip limiter) instead of every source wired
+   straight to ctx.destination — a continuous three-voice drone
+   (mood-driven gain AND filter cutoff, slow LFO movement), thumps
+   with their own lowpass + a short noise transient for punch, a
+   stinger for each lie-pulse, all with light stereo placement. */
+let audioCtx=null, droneGain=null, droneGain2=null, droneGain3=null, droneFilter=null;
+let masterIn=null, clickBufferCache=null;
+
+function buildSoftClipCurve(){
+  const n=1024, curve=new Float32Array(n);
+  for (let i=0;i<n;i++){ const x=i/(n-1)*2-1; curve[i]=Math.tanh(x*1.6)/Math.tanh(1.6); }
+  return curve;
+}
+function buildReverbIR(ctx, duration, decay){
+  const rate=ctx.sampleRate, length=Math.floor(rate*duration);
+  const impulse=ctx.createBuffer(2, length, rate);
+  for (let ch=0; ch<2; ch++){
+    const data=impulse.getChannelData(ch);
+    for (let i=0;i<length;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/length, decay);
+  }
+  return impulse;
+}
+function initMasterBus(ctx){
+  masterIn=ctx.createGain(); masterIn.gain.value=1;
+  const dryGain=ctx.createGain(); dryGain.gain.value=0.82;
+  const wetGain=ctx.createGain(); wetGain.gain.value=0.32;
+  const convolver=ctx.createConvolver(); convolver.buffer=buildReverbIR(ctx, 2.2, 2.6);
+  masterIn.connect(dryGain);
+  masterIn.connect(convolver).connect(wetGain);
+  const lowShelf=ctx.createBiquadFilter(); lowShelf.type='lowshelf'; lowShelf.frequency.value=170; lowShelf.gain.value=2.5;
+  const highShelf=ctx.createBiquadFilter(); highShelf.type='highshelf'; highShelf.frequency.value=6200; highShelf.gain.value=-4.5;
+  dryGain.connect(lowShelf); wetGain.connect(lowShelf);
+  lowShelf.connect(highShelf);
+  const shaper=ctx.createWaveShaper(); shaper.curve=buildSoftClipCurve(); shaper.oversample='4x';
+  highShelf.connect(shaper); shaper.connect(ctx.destination);
+}
+function getClickBuffer(ctx){
+  if (clickBufferCache) return clickBufferCache;
+  const len=Math.floor(ctx.sampleRate*0.02);
+  const buf=ctx.createBuffer(1, len, ctx.sampleRate);
+  const d=buf.getChannelData(0);
+  for (let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len, 3);
+  clickBufferCache=buf;
+  return buf;
+}
 function startDrone(ctx){
+  droneFilter=ctx.createBiquadFilter(); droneFilter.type='lowpass'; droneFilter.Q.value=0.7;
+  droneFilter.frequency.value=650; droneFilter.connect(masterIn);
+  const lfo=ctx.createOscillator(), lfoGain=ctx.createGain();
+  lfo.type='sine'; lfo.frequency.value=0.055; lfoGain.gain.value=200;
+  lfo.connect(lfoGain).connect(droneFilter.frequency); lfo.start();
+
   const o1=ctx.createOscillator(), g1=ctx.createGain();
   o1.type='sine'; o1.frequency.value=52; g1.gain.value=0.0001;
-  o1.connect(g1).connect(ctx.destination); o1.start();
+  o1.connect(g1).connect(droneFilter); o1.start();
   const o2=ctx.createOscillator(), g2=ctx.createGain();
   o2.type='triangle'; o2.frequency.value=104; g2.gain.value=0.0001;
-  o2.connect(g2).connect(ctx.destination); o2.start();
-  droneGain=g1; droneGain2=g2;
+  o2.connect(g2).connect(droneFilter); o2.start();
+  const o3=ctx.createOscillator(), g3=ctx.createGain();
+  o3.type='sine'; o3.frequency.value=52*1.5; g3.gain.value=0.0001; // a fifth above — warmth, not dissonance
+  o3.connect(g3).connect(droneFilter); o3.start();
+  droneGain=g1; droneGain2=g2; droneGain3=g3;
 }
-function thump(ctx, big){
+function thump(ctx, big, pan){
   const now=ctx.currentTime;
+  const panner=ctx.createStereoPanner(); panner.pan.value=pan||0;
+  const filt=ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=big?1100:750; filt.Q.value=0.5;
+  panner.connect(filt).connect(masterIn);
+
   const osc=ctx.createOscillator(), gain=ctx.createGain();
   osc.type='sine'; osc.frequency.setValueAtTime(big?150:120,now);
   osc.frequency.exponentialRampToValueAtTime(big?46:52,now+0.16);
   gain.gain.setValueAtTime(0.0001,now); gain.gain.exponentialRampToValueAtTime(big?0.4:0.24,now+0.012);
   gain.gain.exponentialRampToValueAtTime(0.0001,now+(big?0.4:0.24));
-  osc.connect(gain).connect(ctx.destination); osc.start(now); osc.stop(now+(big?0.42:0.26));
+  osc.connect(gain).connect(panner); osc.start(now); osc.stop(now+(big?0.42:0.26));
+
+  const click=ctx.createBufferSource(); click.buffer=getClickBuffer(ctx);
+  const clickGain=ctx.createGain(); clickGain.gain.value=big?0.055:0.032;
+  click.connect(clickGain).connect(panner); click.start(now);
+
+  if (big){
+    const osc2=ctx.createOscillator(), gain2=ctx.createGain();
+    osc2.type='triangle'; osc2.frequency.value=880;
+    gain2.gain.setValueAtTime(0.0001, now+0.02);
+    gain2.gain.exponentialRampToValueAtTime(0.09, now+0.03);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, now+0.22);
+    osc2.connect(gain2).connect(panner);
+    osc2.start(now+0.02); osc2.stop(now+0.24);
+  }
 }
 function lieStinger(ctx){
   const now=ctx.currentTime;
+  const panner=ctx.createStereoPanner(); panner.pan.value=0;
+  const filt=ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=1300;
   const osc=ctx.createOscillator(), gain=ctx.createGain();
   osc.type='square'; osc.frequency.setValueAtTime(180,now);
   osc.frequency.exponentialRampToValueAtTime(70,now+0.3);
   gain.gain.setValueAtTime(0.0001,now); gain.gain.exponentialRampToValueAtTime(0.1,now+0.02);
   gain.gain.exponentialRampToValueAtTime(0.0001,now+0.32);
-  osc.connect(gain).connect(ctx.destination); osc.start(now); osc.stop(now+0.34);
+  osc.connect(gain).connect(filt).connect(panner).connect(masterIn);
+  osc.start(now); osc.stop(now+0.34);
 }
 
 /* ───────── director */
@@ -838,6 +911,8 @@ function applyMoodAudio(m){
   const now=audioCtx.currentTime;
   droneGain.gain.linearRampToValueAtTime(0.015+m*0.045, now+0.08);
   droneGain2.gain.linearRampToValueAtTime(0.009+m*0.028, now+0.08);
+  droneGain3.gain.linearRampToValueAtTime(0.005+m*0.017, now+0.08);
+  if (droneFilter) droneFilter.frequency.setTargetAtTime(480+m*820, now, 0.6);
 }
 const BIG_LINES = new Set([2,6,15,18,21]);
 function updateActCard(t){
@@ -864,7 +939,7 @@ function frame(now, forced){
     el.narr.classList.toggle('on', !!line);
     if (line) el.narr.textContent=line.s;
     shownLine=idx;
-    if (idx>=0 && !firedLine[idx] && audioCtx){ thump(audioCtx, BIG_LINES.has(idx)); firedLine[idx]=true; }
+    if (idx>=0 && !firedLine[idx] && audioCtx){ thump(audioCtx, BIG_LINES.has(idx), ((idx%5)-2)*0.16); firedLine[idx]=true; }
   }
   el.card.classList.toggle("on", t<2.2);
   updateActCard(t);
@@ -906,7 +981,7 @@ function playReducedSequence(){
   function step(){
     if (i>=LINES.length){ el.narr.classList.remove('on'); return; }
     el.narr.textContent=LINES[i].s; el.narr.classList.add('on');
-    if (audioCtx) thump(audioCtx, BIG_LINES.has(i));
+    if (audioCtx) thump(audioCtx, BIG_LINES.has(i), ((i%5)-2)*0.16);
     i++;
     setTimeout(step, 850);
   }
@@ -916,7 +991,7 @@ function playReducedSequence(){
 BrainIntro.mount({
   onUnlock(ctx){
     audioCtx=ctx;
-    if (ctx) startDrone(ctx);
+    if (ctx){ initMasterBus(ctx); startDrone(ctx); }
     if (REDUCED){ playReducedSequence(); }
     else { last=performance.now(); requestAnimationFrame(frame); }
   }
