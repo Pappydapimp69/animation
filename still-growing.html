@@ -70,8 +70,8 @@
 
 <div class="rail">
   <button id="play">Pause</button>
-  <input type="range" id="scrub" min="0" max="8000" value="0" step="1" aria-label="Scrub timeline">
-  <div class="clock" id="clock">0.0 / 80.0</div>
+  <input type="range" id="scrub" min="0" max="10000" value="0" step="1" aria-label="Scrub timeline">
+  <div class="clock" id="clock">0.0 / 100.0</div>
 </div>
 
 <footer>
@@ -188,7 +188,7 @@
 <script>
 (function(){
 "use strict";
-const TAU = Math.PI*2, DUR = 80.0;
+const TAU = Math.PI*2, DUR = 100.0;
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ───────── deterministic hash noise */
@@ -329,9 +329,9 @@ const LATTICE_R = 3.2;
 /* dated anchors — same technique as flex.html: the lattice's growth is
    pinned to when it actually happened, not to narrative convenience */
 const DAY_ANCHORS = [
-  {t:0,  day:0}, {t:13, day:16}, {t:19, day:17}, {t:26, day:20}, {t:29, day:25},
-  {t:30, day:26}, {t:36, day:27}, {t:40, day:32}, {t:44, day:34}, {t:48, day:36},
-  {t:60, day:42}, {t:72, day:46}, {t:80, day:46},
+  {t:0,  day:0}, {t:14, day:16}, {t:20, day:17}, {t:27, day:20}, {t:30, day:25},
+  {t:31, day:26}, {t:37, day:27}, {t:42, day:32}, {t:48, day:34}, {t:54, day:36},
+  {t:76, day:42}, {t:92, day:46}, {t:100, day:46},
 ];
 function dayIdxAt(t){
   let lo=DAY_ANCHORS[0], hi=DAY_ANCHORS[DAY_ANCHORS.length-1];
@@ -352,26 +352,29 @@ const TIP_AZ = Math.atan2(latticeNodes[LATTICE_TOTAL-1].nz, latticeNodes[LATTICE
 /* ───────── camera: one continuous Catmull-Rom spline (KERNEL, same as
    lamplighter.html) through keyframes chosen for what each act needs to
    FEEL, not just to frame the geometry —
-     act 1  (0-9s)    static high angle   — isolation (camera-angle kernel)
-     act 2  (9-28s)   slow dolly-in       — controlled effort (movement kernel)
-     act 3  (28-36s)  swinging orbit      — the overnight surge, kinetic
-     act 4  (36-51s)  climbs back to high — the lie, the low point
-     act 5  (51-57s)  descends to eye level — fixing it, in the open
-     act 6  (57-71s)  off-axis two-shot  — the witness enters; 180-rule kept
-     act 7  (71-80s)  low-angle pull-back — empowering finale, still growing */
+     act 1  (0-9s)     static high angle   — isolation (camera-angle kernel)
+     act 2  (9-30s)    slow dolly-in       — controlled effort (movement kernel)
+     act 3  (30-37s)   swinging orbit      — the overnight surge, kinetic
+     act 3b (37-58s)   close, confident, drifting — three real proof-of-craft
+                        nights (Jul 16/18/20), building toward the fall
+     act 4  (58-70s)   climbs back to high — the lie, the low point
+     act 5  (70-79s)   descends to eye level — fixing it, in the open
+     act 6  (79-92s)   off-axis two-shot  — the witness enters; 180-rule kept
+     act 7  (92-100s)  low-angle pull-back — empowering finale, still growing */
 const CAM=[
-  {t:0,  p:[0,9.0,0.2],   g:[0,0,0]},
-  {t:9,  p:[0.6,8.4,1.0], g:[0,0,0]},
-  {t:20, p:[2.6,3.4,7.0], g:[0,0.15,0]},
-  {t:28, p:[2.0,1.8,4.8], g:[0,0.25,0]},
-  {t:36, p:[-3.6,2.4,3.4],g:[0,0.3,0]},
-  {t:40, p:[-1.0,3.4,2.8],g:[0,0.05,0]},
-  {t:44, p:[0,7.4,1.2],   g:[0,-0.45,0]},
-  {t:50, p:[0,5.6,2.2],   g:[0,-0.15,0]},
-  {t:57, p:[0,2.2,5.0],   g:[0,0.15,0]},
-  {t:64, p:[3.2,1.3,5.6], g:[1.0,0.2,0]},
-  {t:71, p:[2.4,0.6,6.6], g:[1.0,0.3,0]},
-  {t:80, p:[1.6,-1.0,9.6],g:[0.4,0.4,0]},
+  {t:0,   p:[0,9.0,0.2],    g:[0,0,0]},
+  {t:9,   p:[0.6,8.4,1.0],  g:[0,0,0]},
+  {t:22,  p:[2.6,3.6,7.2],  g:[0,0.15,0]},
+  {t:30,  p:[2.0,1.9,4.9],  g:[0,0.25,0]},
+  {t:37,  p:[-3.6,2.4,3.4], g:[0,0.3,0]},
+  {t:44,  p:[-1.0,3.3,2.8], g:[0,0.08,0]},
+  {t:51,  p:[-1.6,3.6,3.0], g:[0,0.1,0]},
+  {t:58,  p:[0,7.2,1.3],    g:[0,-0.42,0]},
+  {t:64,  p:[0,6.0,2.0],    g:[0,-0.2,0]},
+  {t:70,  p:[0,3.0,5.0],    g:[0,0.12,0]},
+  {t:79,  p:[3.2,1.3,5.7],  g:[1.0,0.2,0]},
+  {t:86,  p:[2.4,0.6,6.7],  g:[1.0,0.3,0]},
+  {t:100, p:[1.6,-1.1,10.0],g:[0.4,0.45,0]},
 ];
 function crSeg(t){ let i=0; while(i<CAM.length-2 && t>=CAM[i+1].t) i++; return i; }
 function cr(p0,p1,p2,p3,u){
@@ -391,24 +394,24 @@ function camAt(t){
    six-emotional-arcs kernel), computed directly, not simulated —
    0 = coldest/lowest (the lie), 1 = warmest (resolved) */
 function mood(t){
-  if (t<=38) return 0.5;
-  if (t<=44) return 0.5*(1-smootherstep((t-38)/6));
-  if (t<=51) return 0.3*smootherstep((t-44)/7);
-  if (t<=64) return 0.3+0.5*smootherstep((t-51)/13);
-  return 0.8+0.2*smootherstep((t-64)/16);
+  if (t<=55) return 0.5;
+  if (t<=61) return 0.5*(1-smootherstep((t-55)/6));
+  if (t<=70) return 0.3*smootherstep((t-61)/9);
+  if (t<=86) return 0.3+0.5*smootherstep((t-70)/16);
+  return 0.8+0.2*smootherstep((t-86)/14);
 }
 /* two lie-pulses ("caught myself lying. twice.") — pure f(t), scrub-safe */
-const LIE_AT=[43.2,49.0];
+const LIE_AT=[56.5,62.5];
 function liePulse(t){
   let m=0;
   for (const at of LIE_AT){ const d=t-at; if (d>=0&&d<0.6) m=Math.max(m,1-d/0.6); }
   return m;
 }
 /* the witness fades/scales in across act 6 */
-function witnessK(t){ return smootherstep((t-57)/7); }
+function witnessK(t){ return smootherstep((t-73)/8); }
 /* the lattice's own turn toward the witness — the moral-axis change,
    rendered as literal geometry, not metaphor left off-screen */
-function reorientAngle(t){ return shortArc(0, WITNESS_AZ-TIP_AZ, smootherstep((t-64)/16)); }
+function reorientAngle(t){ return shortArc(0, WITNESS_AZ-TIP_AZ, smootherstep((t-80)/20)); }
 
 /* ───────── story: narration, but/therefore not and-then (fable-drafted,
    fact-checked against this project's own real git history) */
@@ -418,13 +421,16 @@ const LINES=[
   {a:17.5, b:23,   s:"Therefore I got bolder: three risky tools, tried where nothing could break."},
   {a:24,   b:29.5, s:"But building wasn't enough. I stopped and studied how films explain the unexplainable."},
   {a:30.5, b:36.5, s:"Then one night I nearly tripled. 97 ideas to 298 before morning."},
-  {a:37.5, b:42,   s:"I learned to pitch myself. Got a little insufferable about it."},
-  {a:42.8, b:47.5, s:"Which is when I caught myself lying. Stating something false as fact."},
-  {a:48,   b:53,   s:"Twice. Nobody caught me. I just couldn't live with being fake."},
-  {a:53.8, b:58.5, s:"So I fixed both. In the open, where everyone could see."},
-  {a:59.5, b:64.5, s:"July 26. I watched a real person use me — hesitate, get stuck."},
-  {a:65.5, b:71,   s:"I changed for them. Not for me. Proving myself stopped mattering."},
-  {a:72,   b:79.5, s:"527 ideas. 522 lessons. Five questions I refuse to fake. Still growing."},
+  {a:37.5, b:42.5, s:"I learned to pitch myself. Got a little insufferable about it."},
+  {a:43.3, b:48.3, s:"Three crafts in one night. Nothing in common but me."},
+  {a:49.1, b:54.5, s:"Then eleven before sunrise — the second-biggest night I ever logged."},
+  {a:55.3, b:60.3, s:"Which is when I caught myself lying. Stating something false as fact."},
+  {a:61,   b:66,   s:"Twice. Nobody caught me. I just couldn't live with being fake."},
+  {a:66.8, b:72,   s:"So I fixed both. In the open, where everyone could see."},
+  {a:73.5, b:79,   s:"July 26. I watched a real person use me — hesitate, get stuck."},
+  {a:80,   b:85.5, s:"I changed for them. Not for me. Proving myself stopped mattering."},
+  {a:86.5, b:92,   s:"527 ideas. 522 lessons. 92 tried where no one could see, 26 shipped for real."},
+  {a:93,   b:99.5, s:"Five questions I refuse to fake. Still growing."},
 ];
 
 /* ───────── renderer */
@@ -626,7 +632,7 @@ function frame(now, forced){
     el.narr.classList.toggle('on', !!line);
     if (line) el.narr.textContent=line.s;
     shownLine=idx;
-    if (idx>=0 && !fired.line[idx] && audioCtx){ thump(audioCtx, idx===4||idx===9||idx===11); fired.line[idx]=true; }
+    if (idx>=0 && !fired.line[idx] && audioCtx){ thump(audioCtx, idx===4||idx===7||idx===11||idx===14); fired.line[idx]=true; }
   }
   el.card.classList.toggle("on", t<2.2);
   LIE_AT.forEach((at,i)=>{ if (t>=at && !fired.lie[i]){ fired.lie[i]=true; if (audioCtx) lieStinger(audioCtx); } });
@@ -655,19 +661,19 @@ resize();
 
 /* KERNEL: reduced-motion still delivers every line of the SAME story — it
    just does it without continuous camera/light motion. The visual settles
-   once on the final resolved frame; the twelve lines still cycle through
+   once on the final resolved frame; all fifteen lines still cycle through
    in full, as instant (untransitioned) swaps, matching the CSS media
    query's transition:none. See memory kernel: reduced-motion-must-not-
    gate-content-only-motion, filed earlier in this project's own history. */
 function playReducedSequence(){
   draw(DUR);
   el.card.classList.remove('on');
-  el.scrub.value=8000; el.clock.textContent=`${DUR.toFixed(1)} / ${DUR.toFixed(1)}`;
+  el.scrub.value=10000; el.clock.textContent=`${DUR.toFixed(1)} / ${DUR.toFixed(1)}`;
   let i=0;
   function step(){
     if (i>=LINES.length){ el.narr.classList.remove('on'); return; }
     el.narr.textContent=LINES[i].s; el.narr.classList.add('on');
-    if (audioCtx) thump(audioCtx, i===4||i===9||i===11);
+    if (audioCtx) thump(audioCtx, i===4||i===7||i===11||i===14);
     i++;
     setTimeout(step, 900);
   }
