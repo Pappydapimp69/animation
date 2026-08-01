@@ -7,23 +7,24 @@
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   *{box-sizing:border-box}
+  html,body{height:100%}
   body{
-    margin:0; background:var(--void); color:var(--paper);
+    margin:0; background:#000; color:var(--paper);
     font-family:var(--mono); -webkit-font-smoothing:antialiased;
-    display:flex; flex-direction:column; align-items:center;
-    min-height:100vh; padding:clamp(12px,3vw,32px);
+    display:flex; align-items:center; justify-content:center;
+    width:100vw; height:100vh; overflow:hidden;
   }
-  header{width:100%; max-width:1100px; display:flex; justify-content:space-between;
-    align-items:baseline; gap:16px; flex-wrap:wrap; padding-bottom:14px}
-  h1{font-family:var(--serif); font-weight:400; font-size:clamp(20px,3.4vw,30px);
-    margin:0; letter-spacing:.01em}
-  h1 em{color:var(--amber); font-style:italic}
-  .eyebrow{font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--paper-dim)}
-  .stage{width:100%; max-width:1100px; position:relative; background:#000;
-    aspect-ratio:2.39/1; overflow:hidden; border:1px solid var(--rule)}
+  /* fill the viewport, but preserve the 2.39:1 frame (letterbox/pillarbox
+     as needed) rather than stretching the render */
+  .stage{
+    position:relative; background:#000; overflow:hidden;
+    aspect-ratio:2.39/1;
+    width:100vw; height:100vh;
+    max-width:calc(100vh*2.39); max-height:calc(100vw/2.39);
+  }
   canvas{display:block; width:100%; height:100%}
   .safe{position:absolute; inset:0; pointer-events:none}
-  .narration{position:absolute; left:5%; right:5%; bottom:7%;
+  .narration{position:absolute; left:5%; right:5%; bottom:10%;
     font-family:var(--serif); font-size:clamp(13px,2vw,22px); line-height:1.45;
     text-align:center; text-wrap:balance; color:var(--paper);
     text-shadow:0 1px 12px rgba(0,0,0,.9),0 0 3px rgba(0,0,0,.8);
@@ -34,28 +35,22 @@
     background:linear-gradient(180deg,rgba(5,7,12,.25),rgba(5,7,12,.8));
     opacity:0; transition:opacity .9s ease}
   .titlecard.on{opacity:1}
-  .titlecard .t{font-family:var(--serif); font-size:clamp(26px,5.2vw,54px); letter-spacing:.02em}
+  .titlecard .t{font-family:var(--serif); font-size:clamp(26px,5.2vw,54px); letter-spacing:.02em; color:var(--paper)}
   .titlecard .s{font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber-dim)}
-  .rail{width:100%; max-width:1100px; display:flex; align-items:center; gap:12px; padding:12px 0 4px}
+  .rail{position:absolute; left:0; right:0; bottom:0; z-index:2;
+    display:flex; align-items:center; gap:12px; padding:10px 16px 12px;
+    background:linear-gradient(0deg,rgba(0,0,0,.7),rgba(0,0,0,0));
+  }
   button{font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase;
-    color:var(--paper); background:transparent; border:1px solid var(--rule); padding:7px 13px;
+    color:var(--paper); background:transparent; border:1px solid rgba(232,228,217,.35); padding:7px 13px;
     cursor:pointer; transition:border-color .18s,color .18s}
   button:hover{border-color:var(--amber-dim); color:var(--amber)}
   button:focus-visible{outline:2px solid var(--amber); outline-offset:2px}
   input[type=range]{flex:1; accent-color:var(--amber); min-width:80px; cursor:pointer}
   input[type=range]:focus-visible{outline:2px solid var(--amber); outline-offset:3px}
   .clock{font-size:11.5px; color:var(--paper-dim); font-variant-numeric:tabular-nums; min-width:74px; text-align:right}
-  footer{width:100%; max-width:1100px; font-size:11px; color:var(--paper-dim); padding-top:16px; line-height:1.6}
   @media (prefers-reduced-motion:reduce){.narration,.titlecard{transition:none}}
 </style>
-
-<header>
-  <div>
-    <div class="eyebrow">A self-portrait · software-rendered 3D · no libraries</div>
-    <h1>Still <em>Growing</em></h1>
-  </div>
-  <div class="eyebrow">527 ideas · 522 lessons · one shape</div>
-</header>
 
 <div class="stage">
   <canvas id="c"></canvas>
@@ -66,19 +61,12 @@
     </div>
     <div class="narration" id="narr"></div>
   </div>
+  <div class="rail">
+    <button id="play">Pause</button>
+    <input type="range" id="scrub" min="0" max="10000" value="0" step="1" aria-label="Scrub timeline">
+    <div class="clock" id="clock">0.0 / 100.0</div>
+  </div>
 </div>
-
-<div class="rail">
-  <button id="play">Pause</button>
-  <input type="range" id="scrub" min="0" max="10000" value="0" step="1" aria-label="Scrub timeline">
-  <div class="clock" id="clock">0.0 / 100.0</div>
-</div>
-
-<footer>
-  One node per real idea and lesson filed while building this project — placed on a growing sphere in
-  true chronological order, camera choreography and lighting keyed to the story, nothing loaded from
-  disk or network.
-</footer>
 
 <script>
 /* Vendored from Pappydapimp69/Brain, shared/brain-intro.js */
