@@ -431,9 +431,24 @@ function uAt(t){
 function corridorTargetAt(t){
   if (t<=142) return pathPoint(uAt(t));
   const a = pathPoint(uAt(142));
-  if (t>=152) return AGG_CENTER;
-  const k = smootherstep((t-142)/10);
-  return [ a[0]+(AGG_CENTER[0]-a[0])*k, a[1]+(AGG_CENTER[1]-a[1])*k, a[2]+(AGG_CENTER[2]-a[2])*k ];
+  let base;
+  if (t>=152) base = AGG_CENTER;
+  else {
+    const k = smootherstep((t-142)/10);
+    base = [ a[0]+(AGG_CENTER[0]-a[0])*k, a[1]+(AGG_CENTER[1]-a[1])*k, a[2]+(AGG_CENTER[2]-a[2])*k ];
+  }
+  /* once the witness exists, the LOOK TARGET itself has to move partway
+     toward it, not just the eye — verified first-hand: with the target
+     pinned to AGG_CENTER the whole time, the witness's real 4.2-unit
+     lateral offset projected off the right edge of frame (screen x
+     1530 against a 1440-wide canvas) during its own most important
+     line, because that big an angular displacement at close range
+     can't be framed by eye movement alone. */
+  const wk = witnessK(t);
+  if (wk<=0) return base;
+  return [ base[0]+(WITNESS_POS[0]-AGG_CENTER[0])*wk*0.4,
+           base[1]+(WITNESS_POS[1]-AGG_CENTER[1])*wk*0.4,
+           base[2]+(WITNESS_POS[2]-AGG_CENTER[2])*wk*0.4 ];
 }
 const OFFSETS=[
   {t:0,   o:[0.4,3.4,4.2]},   // genesis: high angle, isolated
@@ -445,13 +460,13 @@ const OFFSETS=[
   {t:100, o:[1.6,1.1,2.4]},
   {t:112, o:[-2.0,0.8,2.2]},  // reckoning: brain, close and low
   {t:128, o:[1.8,1.2,3.0]},   // late bloom
-  {t:144, o:[-1.4,1.1,2.8]},
+  {t:135, o:[-1.4,1.1,2.8]},
   {t:142, o:[0,3.0,7.2]},     // arriving: pull back, gentle high angle
   {t:152, o:[1.0,2.4,4.8]},
-  {t:178, o:[0,5.2,1.6]},     // the low point: back up high, low-key
-  {t:186, o:[0,2.8,4.2]},
-  {t:195, o:[3.4,1.2,4.8]},   // the witness: off-axis two-shot
-  {t:210, o:[1.8,-1.0,7.6]},  // finale: low angle, pulled back
+  {t:164, o:[0,5.2,1.6]},     // the low point: back up high, low-key
+  {t:178, o:[2.0,3.4,4.4]},   // begin swinging toward the two-shot early —
+  {t:195, o:[2.5,1.15,5.0]},  // the witness: held in frame, not a fly-by
+  {t:210, o:[2.1,-0.75,7.5]}, // finale: low angle, pulled back, witness still in shot
 ];
 function crSeg(arr,t){ let i=0; while(i<arr.length-2 && t>=arr[i+1].t) i++; return i; }
 function cr(p0,p1,p2,p3,u){
@@ -704,16 +719,24 @@ function draw(t){
   }
 
   /* ---- the aggregate: everything above, gathered into one shape —
-     only meaningfully visible once the corridor has been walked ---- */
+     only meaningfully visible once the corridor has been walked.
+     Its own growth clock (aggDay) reaches "fully grown" around t=95,
+     long before the camera actually arrives at t=150 — verified
+     first-hand this was rendering as a permanently-visible, heavily-
+     fogged dark smudge in the background for the entire obsession/
+     reckoning/late-bloom stretch (t=95-150), undermining the arrival
+     as a reveal and reading as a plain visual bug. Gate on screen
+     time, not just on story-day, and fade it in rather than pop it. */
+  const aggVis = t<128 ? 0 : smootherstep((t-128)/17);
   const rotM=mRotY(rot);
   const aggDay = Math.min(day,46);
   const aggPts=[];
-  for (let i=0;i<AGG_TOTAL;i++){
+  for (let i=0;aggVis>0.001 && i<AGG_TOTAL;i++){
     const n=aggNodes[i];
     const nage=aggDay-n.day;
     if (nage<0) continue;
-    let opacity=Math.min(0.95, nage*2.0);
-    if (opacity<=0) continue;
+    let opacity=Math.min(0.95, nage*2.0)*aggVis;
+    if (opacity<=0.01) continue;
     const isFrontier=nage<1.3;
     const local=[n.nx*AGG_R, n.ny*AGG_R, n.nz*AGG_R];
     const world=xf(rotM,local);
