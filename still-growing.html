@@ -8,23 +8,27 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%}
+  :root{ --railh: 52px; }
   body{
     margin:0; background:#000; color:var(--paper);
     font-family:var(--mono); -webkit-font-smoothing:antialiased;
     display:flex; align-items:center; justify-content:center;
     width:100vw; height:100vh; overflow:hidden;
   }
-  /* fill the viewport, but preserve the 2.39:1 frame (letterbox/pillarbox
-     as needed) rather than stretching the render */
+  /* the player: stage on top, transport BELOW it (never overlaid — an
+     overlaid bar sits directly on the narration's own safe-title band
+     and makes it unreadable, see filed lesson). Fills the viewport but
+     preserves the 2.39:1 frame (letterbox/pillarbox as needed) rather
+     than stretching the render; max-width is derived from the height
+     LEFT OVER after the transport bar, not the full viewport height. */
+  .player{ width:100vw; max-width:calc((100vh - var(--railh))*2.39); }
   .stage{
     position:relative; background:#000; overflow:hidden;
-    aspect-ratio:2.39/1;
-    width:100vw; height:100vh;
-    max-width:calc(100vh*2.39); max-height:calc(100vw/2.39);
+    aspect-ratio:2.39/1; width:100%;
   }
   canvas{display:block; width:100%; height:100%}
   .safe{position:absolute; inset:0; pointer-events:none}
-  .narration{position:absolute; left:5%; right:5%; bottom:10%;
+  .narration{position:absolute; left:5%; right:5%; bottom:7%;
     font-family:var(--serif); font-size:clamp(13px,2vw,22px); line-height:1.45;
     text-align:center; text-wrap:balance; color:var(--paper);
     text-shadow:0 1px 12px rgba(0,0,0,.9),0 0 3px rgba(0,0,0,.8);
@@ -37,12 +41,12 @@
   .titlecard.on{opacity:1}
   .titlecard .t{font-family:var(--serif); font-size:clamp(26px,5.2vw,54px); letter-spacing:.02em; color:var(--paper)}
   .titlecard .s{font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber-dim)}
-  .rail{position:absolute; left:0; right:0; bottom:0; z-index:2;
-    display:flex; align-items:center; gap:12px; padding:10px 16px 12px;
-    background:linear-gradient(0deg,rgba(0,0,0,.7),rgba(0,0,0,0));
+  .rail{ height:var(--railh); width:100%;
+    display:flex; align-items:center; gap:12px; padding:0 4px;
+    background:#000;
   }
   button{font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase;
-    color:var(--paper); background:transparent; border:1px solid rgba(232,228,217,.35); padding:7px 13px;
+    color:var(--paper); background:transparent; border:1px solid var(--rule); padding:7px 13px;
     cursor:pointer; transition:border-color .18s,color .18s}
   button:hover{border-color:var(--amber-dim); color:var(--amber)}
   button:focus-visible{outline:2px solid var(--amber); outline-offset:2px}
@@ -52,14 +56,16 @@
   @media (prefers-reduced-motion:reduce){.narration,.titlecard{transition:none}}
 </style>
 
-<div class="stage">
-  <canvas id="c"></canvas>
-  <div class="safe">
-    <div class="titlecard" id="card">
-      <div class="t">Still Growing</div>
-      <div class="s">a self-portrait</div>
+<div class="player">
+  <div class="stage">
+    <canvas id="c"></canvas>
+    <div class="safe">
+      <div class="titlecard" id="card">
+        <div class="t">Still Growing</div>
+        <div class="s">a self-portrait</div>
+      </div>
+      <div class="narration" id="narr"></div>
     </div>
-    <div class="narration" id="narr"></div>
   </div>
   <div class="rail">
     <button id="play">Pause</button>
