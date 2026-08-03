@@ -237,29 +237,139 @@ const BRAIN_CORE = rock(20.3,[232,196,120]);
    This is the part of the story the earlier self-portrait skipped. */
 const START = Date.UTC(2026,5,14); // 2026-06-14
 function dOf(s){ const [y,m,d]=s.split('-').map(Number); return Math.round((Date.UTC(y,m-1,d)-START)/86400000); }
+/* Full rebuild from `brain analyze density`, 2026-08-03 — the first pass
+   only carried 20 named projects; the real graph has 124, including the
+   ~100 sandbox-* exploration/practice builds that run July 5-26, the same
+   weeks as dog/brain/the-game-*. That overlap is real, not a rendering
+   choice: the corridor now shows the exploration swarm sitting alongside
+   the major through-lines instead of implying it came "before" them. */
 const PROJECTS = [
-  {id:'pocketzane',                 n:6,  s:'2026-06-14', e:'2026-06-14'},
-  {id:'lockstep',                   n:10, s:'2026-06-15', e:'2026-06-15'},
-  {id:'test',                       n:25, s:'2026-06-30', e:'2026-07-13'},
-  {id:'shadow',                     n:4,  s:'2026-07-01', e:'2026-07-01'},
-  {id:'dog',                        n:87, s:'2026-07-01', e:'2026-08-01', obsession:true},
-  {id:'memory',                     n:8,  s:'2026-07-02', e:'2026-07-20'},
-  {id:'brain',                      n:20, s:'2026-07-04', e:'2026-07-30', isBrain:true},
-  {id:'dbh',                        n:6,  s:'2026-07-05', e:'2026-07-06'},
-  {id:'the-game-prologue',          n:27, s:'2026-07-07', e:'2026-07-15'},
-  {id:'the-game-wrong-sky',         n:19, s:'2026-07-07', e:'2026-07-13'},
-  {id:'the-game-the-waiting-city',  n:17, s:'2026-07-08', e:'2026-07-13'},
-  {id:'the-game-the-recursion',     n:21, s:'2026-07-09', e:'2026-07-13'},
-  {id:'the-game-the-answering-deep',n:13, s:'2026-07-09', e:'2026-07-13'},
-  {id:'collective',                 n:13, s:'2026-07-11', e:'2026-07-31'},
-  {id:'draft',                      n:15, s:'2026-07-13', e:'2026-07-18'},
-  {id:'brain-pitch',                n:3,  s:'2026-07-16', e:'2026-07-18'},
-  {id:'garden',                     n:6,  s:'2026-07-17', e:'2026-07-18'},
-  {id:'opticon',                    n:32, s:'2026-07-23', e:'2026-08-01'},
-  {id:'brain-builder',              n:11, s:'2026-07-26', e:'2026-07-30'},
-  {id:'mirage',                     n:3,  s:'2026-07-30', e:'2026-07-30'},
+  {id:'pocketzane',                          n:6  , s:'2026-06-14', e:'2026-06-14'},
+  {id:'warden-fables',                       n:1  , s:'2026-06-14', e:'2026-06-14'},
+  {id:'lockstep',                            n:10 , s:'2026-06-15', e:'2026-06-15'},
+  {id:'test',                                n:25 , s:'2026-06-30', e:'2026-07-13'},
+  {id:'dog',                                 n:87 , s:'2026-07-01', e:'2026-08-01', obsession:true},
+  {id:'sandbox-expr',                        n:2  , s:'2026-07-01', e:'2026-07-01'},
+  {id:'sandbox-myers-diff',                  n:3  , s:'2026-07-01', e:'2026-07-01'},
+  {id:'sandbox-toposort',                    n:2  , s:'2026-07-01', e:'2026-07-01'},
+  {id:'shadow',                              n:4  , s:'2026-07-01', e:'2026-07-01'},
+  {id:'memory',                              n:8  , s:'2026-07-02', e:'2026-07-20'},
+  {id:'brain',                               n:20 , s:'2026-07-04', e:'2026-07-30', isBrain:true},
+  {id:'chronicles',                          n:1  , s:'2026-07-05', e:'2026-07-05'},
+  {id:'dbh',                                 n:6  , s:'2026-07-05', e:'2026-07-06'},
+  {id:'sandbox-collision',                   n:2  , s:'2026-07-05', e:'2026-07-26'},
+  {id:'sandbox-distance',                    n:1  , s:'2026-07-05', e:'2026-07-05'},
+  {id:'sandbox-genesis-fm',                  n:3  , s:'2026-07-05', e:'2026-07-13'},
+  {id:'sandbox-genesis-mix',                 n:1  , s:'2026-07-05', e:'2026-07-05'},
+  {id:'sandbox-genesis-psg',                 n:2  , s:'2026-07-05', e:'2026-07-13'},
+  {id:'sandbox-keylock',                     n:1  , s:'2026-07-05', e:'2026-07-05'},
+  {id:'sandbox-maze',                        n:2  , s:'2026-07-05', e:'2026-07-13'},
+  {id:'sandbox-scatter',                     n:2  , s:'2026-07-05', e:'2026-07-13'},
+  {id:'sandbox-shuffle',                     n:1  , s:'2026-07-05', e:'2026-07-05'},
+  {id:'the-game-prologue',                   n:27 , s:'2026-07-07', e:'2026-07-15'},
+  {id:'the-game-wrong-sky',                  n:19 , s:'2026-07-07', e:'2026-07-13'},
+  {id:'the-game-the-waiting-city',           n:17 , s:'2026-07-08', e:'2026-07-13'},
+  {id:'collective-reference',                n:1  , s:'2026-07-09', e:'2026-07-09'},
+  {id:'the-game-the-answering-deep',         n:13 , s:'2026-07-09', e:'2026-07-13'},
+  {id:'the-game-the-recursion',              n:21 , s:'2026-07-09', e:'2026-07-13'},
+  {id:'collective',                          n:13 , s:'2026-07-11', e:'2026-07-31'},
+  {id:'ideas',                               n:2  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-anim',                        n:6  , s:'2026-07-11', e:'2026-07-26'},
+  {id:'sandbox-astar-replan',                n:2  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-bloom',                       n:2  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-combined-game-loop',          n:4  , s:'2026-07-11', e:'2026-07-26'},
+  {id:'sandbox-combined-graph-editor',       n:2  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-combined-integration',        n:4  , s:'2026-07-11', e:'2026-07-12'},
+  {id:'sandbox-combined-save-system',        n:2  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-csv',                         n:1  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-dbz-combat',                  n:5  , s:'2026-07-11', e:'2026-07-13'},
+  {id:'sandbox-graph-viz',                   n:4  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-loot-pity',                   n:2  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-pathfinding-astar-heuristic', n:1  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-pathfinding-diagonal',        n:1  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-pathfinding-flowfield',       n:2  , s:'2026-07-11', e:'2026-07-13'},
+  {id:'sandbox-procgen-ca',                  n:1  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-procgen-lsystem',             n:1  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-procgen-wfc',                 n:2  , s:'2026-07-11', e:'2026-07-13'},
+  {id:'sandbox-ratelimit',                   n:1  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-savemigrate',                 n:3  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-undo-redo',                   n:5  , s:'2026-07-11', e:'2026-07-11'},
+  {id:'sandbox-combined-movement-stack',     n:2  , s:'2026-07-12', e:'2026-07-13'},
+  {id:'sandbox-dbz-team-combat',             n:5  , s:'2026-07-12', e:'2026-07-12'},
+  {id:'sandbox-power-scaling',               n:2  , s:'2026-07-12', e:'2026-07-12'},
+  {id:'codex-visual-snapshots',              n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'draft',                               n:15 , s:'2026-07-13', e:'2026-07-18'},
+  {id:'sandbox-brain-loop1-denormal-swept',  n:2  , s:'2026-07-13', e:'2026-07-18'},
+  {id:'sandbox-brain-loop2-frameacc-loopseam', n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-accessibility-render', n:2  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-action-resolver',    n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-audio-realtime',     n:3  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-bloom-audio',        n:8  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-brain-viz-growth',   n:9  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-cadence-frametick',  n:2  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-diagonal-distance',  n:3  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-garden-viz',         n:9  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-hold-dismiss',       n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-lfsr-peak-meter',    n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-loop-combat',        n:2  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-mobile-visibility',  n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-narrative-flags',    n:2  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-pathfinding-stack',  n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-pathmetrics',        n:2  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-polling-click',      n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-quest-offer-batch',  n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-realtime-loop',      n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-replan-gameloop',    n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-replan-save',        n:2  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-rpg-progression',    n:6  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-save-lifecycle',     n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-seed-drawstream',    n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-skilltree-formula',  n:6  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-sparse-map',         n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-tickorder-cancel',   n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-undo-replan',        n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-combined-wfc-keylock',        n:6  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-dbz-merged',                  n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-dog-pathfinding',             n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-geometry-pip',                n:2  , s:'2026-07-13', e:'2026-07-20'},
+  {id:'sandbox-rankpull-forcelayout',        n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-resolver-starves-tutorial',   n:2  , s:'2026-07-13', e:'2026-07-20'},
+  {id:'sandbox-seam-loop-movement',          n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-seam-replan-save',            n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'sandbox-shadowbias',                  n:1  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'scabby-the-spoon',                    n:3  , s:'2026-07-13', e:'2026-07-13'},
+  {id:'brain-pitch',                         n:3  , s:'2026-07-16', e:'2026-07-18'},
+  {id:'garden',                              n:6  , s:'2026-07-17', e:'2026-07-18'},
+  {id:'creativity',                          n:1  , s:'2026-07-18', e:'2026-07-18'},
+  {id:'sandbox-cvd-transition-audit',        n:1  , s:'2026-07-18', e:'2026-07-18'},
+  {id:'sandbox-path-smoothing-validation',   n:1  , s:'2026-07-18', e:'2026-07-18'},
+  {id:'sandbox-story-arc-classifier',        n:1  , s:'2026-07-18', e:'2026-07-18'},
+  {id:'sandbox-weather-vfx',                 n:1  , s:'2026-07-18', e:'2026-07-18'},
+  {id:'sandbox-capture-layer-starves-tutorial', n:3  , s:'2026-07-20', e:'2026-07-26'},
+  {id:'sandbox-crypto-hmac',                 n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-leveldesign-softlock',        n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-localization-expansion',      n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-offscreen-marker-projection', n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-phantom-voice-eats-budget',   n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-physics-integration',         n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-research-methodology',        n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-rng-determinism-not-sufficient-for-replay', n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-seed-vs-replay-verification', n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-shaders-gamma',               n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-speedrun-rng',                n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-typography-measure',          n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'sandbox-validation-ladder-vs-key-collision', n:1  , s:'2026-07-20', e:'2026-07-20'},
+  {id:'opticon',                             n:35 , s:'2026-07-23', e:'2026-08-03'},
+  {id:'brain-builder',                       n:11 , s:'2026-07-26', e:'2026-07-30'},
+  {id:'sandbox-combined-cutscene-resume',    n:1  , s:'2026-07-26', e:'2026-07-26'},
+  {id:'sandbox-voice-pool-reset',            n:1  , s:'2026-07-26', e:'2026-07-26'},
+  {id:'animation',                           n:1  , s:'2026-07-30', e:'2026-07-30'},
+  {id:'mirage',                              n:3  , s:'2026-07-30', e:'2026-07-30'},
+  {id:'sandbox-combined-opticon-test-connectivity', n:1  , s:'2026-07-31', e:'2026-07-31'},
+  {id:'sandbox-combined-opticon-prologue-latch', n:1  , s:'2026-08-01', e:'2026-08-01'},
+  {id:'sandbox-edge-draft-opticon-scrub',    n:1  , s:'2026-08-01', e:'2026-08-01'},
 ];
-const STORY_SPAN = 48; // Jun14 -> Aug1, inclusive span in days
+const STORY_SPAN = 50; // Jun14 -> Aug3, inclusive span in days (real max end date now opticon 08-03)
 PROJECTS.forEach(p=>{ p.sd=dOf(p.s); p.ed=Math.max(p.sd,dOf(p.e)); });
 
 /* corridor: position each project along a slow curve, in chronological
@@ -399,28 +509,32 @@ function dayAt(t){
 
 /* ───────── camera: position along the corridor is its OWN authored
    sweep (U_KEYS below), independent of the day-clock that drives what's
-   grown. dog (u=0.354) and brain (u=0.417) both sit chronologically
-   inside the same span as the sprawl (u=0.31-0.65) — not after it — so
-   the camera can't simply race forward with "current day"; it has to
-   slow down and dwell in that same neighborhood on its OWN schedule
-   while the day-clock (already well ahead by then) keeps everything
-   there fully lit. u is monotonic — no backtracking — matching real
-   chronology; only the DWELL RATE varies per act.
+   grown. dog and brain both sit chronologically inside the same span as
+   the sprawl — not after it — so the camera can't simply race forward
+   with "current day"; it has to slow down and dwell in that same
+   neighborhood on its OWN schedule while the day-clock (already well
+   ahead by then) keeps everything there fully lit. u is monotonic — no
+   backtracking — matching real chronology; only the DWELL RATE varies
+   per act. dog/brain's u are computed from their real day offsets, not
+   hardcoded, so a dataset rebuild (STORY_SPAN changing) can't silently
+   drift them out of sync with where their hero cores actually sit.
      0-15    genesis — pocketzane/lockstep, alone (u 0 -> 0.02)
-     15-58   the sprawl — weaving through test/shadow/dbh/the-game-*
+     15-58   the sprawl — weaving through test/shadow/dbh/the-game series/
+             the ~100 sandbox exploration builds, all interleaved
      58-100  the obsession + reckoning — dwelling on dog, then brain
      100-150 the late bloom — collective/draft/brain-pitch/.../opticon
      150-210 still growing — arriving at the aggregate, the witness */
+const DOG_U = dogProject.sd/STORY_SPAN, BRAIN_U = brainProject.sd/STORY_SPAN;
 const U_KEYS=[
   {t:0,   u:0.0},
   {t:15,  u:0.02},
   {t:40,  u:0.28},
-  {t:58,  u:0.3542},   // dog's real u (day17/48) — arrive and hold
-  {t:88,  u:0.3542},   // still holding through the whole obsession act
-  {t:100, u:0.4167},   // brain's real u (day20/48) — the reckoning
-  {t:118, u:0.4167},   // hold through the reckoning
-  {t:130, u:0.65},     // moving again: collective / draft / brain-pitch
-  {t:140, u:0.88},     // late bloom: garden / opticon / brain-builder / mirage
+  {t:58,  u:DOG_U},     // dog's real u (day17/50) — arrive and hold
+  {t:88,  u:DOG_U},     // still holding through the whole obsession act
+  {t:100, u:BRAIN_U},   // brain's real u (day20/50) — the reckoning
+  {t:118, u:BRAIN_U},   // hold through the reckoning
+  {t:130, u:0.65},      // moving again: collective / draft / brain-pitch
+  {t:140, u:0.88},      // late bloom: garden / opticon / brain-builder / mirage
 ];
 function uAt(t){
   let i=0; while(i<U_KEYS.length-2 && t>=U_KEYS[i+1].t) i++;
