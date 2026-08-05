@@ -507,15 +507,23 @@ function finish(){
   document.getElementById('endsplash').classList.remove('out');
   sfxWin();
 }
+/* fit the play view to the real screen: scale off the SHORTER axis, since
+   height alone is a landscape-only assumption and over-zooms on a portrait
+   phone. Recomputed on resize so a rotation or window change re-fits. */
+function playZoom(){ return Math.max(0.5, Math.min(1.25, Math.min(W,H)/850)); }
 function startGame(){
-  mode='play'; claimed.clear(); chain=0; bestChain=0; seamsClosed=0; pops.length=0;
+  mode='play'; view.k=playZoom(); claimed.clear(); chain=0; bestChain=0; seamsClosed=0; pops.length=0;
   brain.x=startNode.x; brain.y=startNode.y; brain.r=9;
   claim(startNode,true);
   panTarget=null;
   view.x=W/2-brain.x*view.k; view.y=H/2-brain.y*view.k;
-  document.getElementById('hud2').classList.remove('hide');
+  /* the play level is wordless: the growing body and the seams lighting up
+     ARE the readout, and the numbers are reported on the end card */
+  document.getElementById('hud2').classList.add('hide');
   document.querySelector('.figures').classList.add('hide');
   document.querySelector('.tools').classList.add('hide');
+  document.querySelector('.hint').classList.add('hide');
+  traceEl.classList.remove('on');
   document.getElementById('endsplash').classList.add('out');
   closePanel();
   syncHud();
@@ -538,7 +546,12 @@ function tickGame(dt){
      divided by the zoom so travel feels identical in screen terms however
      far out you are. */
   if (ptr){
-    const dx=ptr.x-W/2, dy=ptr.y-H/2;
+    /* centre measured from the canvas box rather than assumed to be
+       innerWidth/2 — the visual viewport and the element box do not always
+       agree (mobile chrome, dvh), and a heading computed from the wrong
+       origin drifts the whole control scheme off-axis */
+    const R=cv.getBoundingClientRect();
+    const dx=ptr.x-(R.left+R.width/2), dy=ptr.y-(R.top+R.height/2);
     const d=Math.hypot(dx,dy);
     const DEAD=10;
     if (d>DEAD){
@@ -580,7 +593,9 @@ function resize(){
   cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
   ctx.setTransform(DPR,0,0,DPR,0,0);
 }
-addEventListener('resize',resize); resize();
+addEventListener('resize',()=>{ resize(); if (mode==='play'){ view.k=playZoom();
+  view.x=W/2-brain.x*view.k; view.y=H/2-brain.y*view.k; } else fit(); });
+resize();
 function fit(){
   let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
   for (const n of N){ if (n.alone&&!showAlone) continue;
@@ -895,7 +910,9 @@ function draw(){
     /* label candidates are collected, not drawn — in the dense core the
        landmarks overlapped into an unreadable stack, so placement is a
        greedy pass by importance with an overlap test (below) */
-    const showLabel = (mode!=='play' || claimed.has(n.id)) && (isHot || inPath.has(n.id)
+    /* names are canvas text, and the play level carries none — the map is
+       read by shape there, not by reading. Explore keeps every label. */
+    const showLabel = mode!=='play' && (isHot || inPath.has(n.id)
       || n.n>=15 || n.deg>=12
       || (view.k>0.75 && (n.n>=6||n.deg>=6))
       || (view.k>1.5 && n.deg>0));
