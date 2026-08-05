@@ -40,6 +40,25 @@
     color:var(--amber-dim); letter-spacing:.1em}
   .actcard .t{font-family:var(--serif); font-size:clamp(21px,3.4vw,36px); letter-spacing:.03em;
     color:var(--paper); text-shadow:0 1px 14px rgba(0,0,0,.9)}
+  /* the probe: every one of the 124 clusters is real, named data the
+     film foregrounds and never explains — a spotlighted detail that
+     goes nowhere is a broken promise, so let the frame answer. */
+  .probe{position:absolute; left:0; top:0; pointer-events:none; opacity:0;
+    transition:opacity .12s ease; transform:translate(-50%,-140%);
+    background:rgba(5,7,12,.86); border:1px solid rgba(255,179,71,.42);
+    padding:6px 9px; white-space:nowrap; z-index:4;
+    font-family:var(--mono); font-size:11px; letter-spacing:.04em; color:var(--paper)}
+  .probe.on{opacity:1}
+  .probe .pn{color:var(--amber)}
+  .probe .pd{color:var(--paper-dim); font-size:10px}
+  .stage.probing{cursor:crosshair}
+  .outro{position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; text-align:center;
+    background:linear-gradient(180deg,rgba(5,7,12,.55),rgba(5,7,12,.9));
+    opacity:0; pointer-events:none; transition:opacity .8s ease; z-index:5}
+  .outro.on{opacity:1; pointer-events:auto}
+  .outro .big{font-family:var(--serif); font-size:clamp(17px,2.6vw,27px); color:var(--paper); text-wrap:balance; max-width:78%}
+  .outro .sub{font-size:10.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--amber-dim)}
   .rail{ height:var(--railh); width:100%; display:flex; align-items:center; gap:12px; padding:0 4px; background:#000; }
   button{font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase;
     color:var(--paper); background:transparent; border:1px solid var(--rule); padding:7px 13px;
@@ -65,6 +84,12 @@
         <div class="t" id="actcard-t"></div>
       </div>
       <div class="narration" id="narr"></div>
+    </div>
+    <div class="probe" id="probe"></div>
+    <div class="outro" id="outro">
+      <div class="big" id="outro-big"></div>
+      <div class="sub">hover any light to name it</div>
+      <button id="replay">Watch again</button>
     </div>
   </div>
   <div class="rail">
@@ -678,6 +703,10 @@ const ACT_CARDS=[
   {t:147.7,hold:2.9, n:"VI",  t2:"Still Growing"},
 ];
 
+/* screen-space footprints of every currently-visible cluster, refreshed
+   by draw() each frame and consumed by the probe's hit test */
+const HITS=[];
+
 /* ───────── renderer */
 const cv=document.getElementById("c"), ctx=cv.getContext("2d");
 let W=0,H=0,DPR=1;
@@ -786,10 +815,22 @@ function draw(t){
   /* ---- the corridor: twenty real clusters, growing on schedule,
      dimming to embers once closed — except the one that didn't close ---- */
   const pts=[];
+  HITS.length=0;
   let dogLife=0, brainLifeForCore=0;
   for (const p of PROJECTS){
     const age = day - p.sd;
     if (age<0) continue;
+    /* record this cluster's screen-space footprint for the probe. Done
+       here rather than in a second pass so it can never disagree with
+       what was actually drawn — same camera, same frame, same skip
+       rules (an unborn project is not hoverable because it isn't there). */
+    {
+      const cv2=xf(V,p.center);
+      if (cv2[2]<-0.25){
+        const cs=pj(cv2), zc=-cv2[2];
+        HITS.push({p, x:cs[0], y:cs[1], r:Math.max(15, p.r*focal/zc*1.15), z:zc});
+      }
+    }
     const life = Math.max(0, Math.min(1,(day-p.sd)/Math.max(1,p.ed-p.sd)));
     if (p.obsession) dogLife = life;
     if (p.isBrain) brainLifeForCore = life;
@@ -1229,7 +1270,12 @@ function frame(now, forced){
 
   el.scrub.value=Math.round(t*100);
   el.clock.textContent=`${t.toFixed(1)} / ${DUR.toFixed(1)}`;
+  updateOutro(t);
+  refreshProbe();
 }
+/* shown only at the very end, and hidden again the moment the viewer
+   scrubs back — an invitation, not a wall between them and the film */
+function updateOutro(time){ outroEl.classList.toggle('on', time>=DUR-0.05); }
 
 function seek(time){
   playing=false; el.play.textContent="Play";
@@ -1242,7 +1288,76 @@ function seek(time){
   updateActCard(t);
   el.scrub.value=Math.round(t*100);
   el.clock.textContent=`${t.toFixed(1)} / ${DUR.toFixed(1)}`;
+  updateOutro(t);
 }
+/* ───────── the probe. The film foregrounds 124 real clusters and stops
+   to look at exactly two; the other 122 are loaded rifles that never
+   fire. Every one of them already carries its real name, real lesson
+   count and real date range, so the second pass can be a different film
+   from the first: pass one withholds, pass two answers. */
+const probeEl=document.getElementById('probe'), stageEl=document.querySelector('.stage');
+const NAME_OVERRIDE={
+  'test':'test', 'dog':'dog', 'brain':'brain', 'dbh':'dbh', 'draft':'draft',
+  'ideas':'ideas', 'memory':'memory', 'garden':'garden', 'mirage':'mirage',
+  'shadow':'shadow', 'opticon':'opticon', 'collective':'collective',
+};
+function prettyName(id){
+  if (NAME_OVERRIDE[id]) return id;
+  return id.replace(/^sandbox-combined-/,'').replace(/^sandbox-/,'').replace(/^the-game-/,'');
+}
+function fmtDate(s){
+  const [y,m,d]=s.split('-').map(Number);
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]+' '+d;
+}
+function hitTest(cx,cy){
+  let best=null;
+  for (const h of HITS){
+    const d=Math.hypot(cx-h.x, cy-h.y);
+    if (d<=h.r && (!best || h.z<best.z)) best=h;
+  }
+  return best;
+}
+/* last pointer position, so the label can be RE-EVALUATED every frame.
+   Hit-testing only on pointermove leaves a stale label the moment the
+   camera moves — during playback the clusters slide out from under a
+   motionless cursor, and at the end of the film nothing is in view at
+   all while the last label was still reading "dog". */
+let lastPtr=null;
+function showProbe(clientX, clientY){
+  lastPtr={x:clientX,y:clientY};
+  const rect=cv.getBoundingClientRect();
+  if (!rect.width||!rect.height) return;
+  const x=(clientX-rect.left)*(W/rect.width), y=(clientY-rect.top)*(H/rect.height);
+  const hit=hitTest(x,y);
+  if (!hit){ probeEl.classList.remove('on'); return; }
+  const p=hit.p;
+  const span = p.s===p.e ? fmtDate(p.s) : `${fmtDate(p.s)} – ${fmtDate(p.e)}`;
+  probeEl.innerHTML=`<span class="pn">${prettyName(p.id)}</span> · ${p.n} lesson${p.n===1?'':'s'}`
+    +`<br><span class="pd">${span}</span>`;
+  /* anchor at the POINTER, not the cluster centre, and clamp into the
+     frame. A cluster's centre can project far outside the visible box
+     while its own points are still on screen and hoverable (measured
+     x=1728 against a 1440-wide stage) — anchoring there put the label
+     across the frame from the thing being pointed at, and .stage clips
+     overflow so near-edge clusters had no visible label at all. */
+  const px=(clientX-rect.left), py=(clientY-rect.top);
+  const pw=probeEl.offsetWidth||140, ph=probeEl.offsetHeight||38;
+  probeEl.style.left=Math.max(pw/2+6, Math.min(rect.width-pw/2-6, px))+'px';
+  probeEl.style.top=Math.max(ph*1.45+4, Math.min(rect.height-6, py))+'px';
+  probeEl.classList.add('on');
+}
+cv.addEventListener('pointermove', e=>showProbe(e.clientX,e.clientY));
+cv.addEventListener('pointerdown', e=>showProbe(e.clientX,e.clientY));
+cv.addEventListener('pointerleave', ()=>{ lastPtr=null; probeEl.classList.remove('on'); });
+function refreshProbe(){ if (lastPtr) showProbe(lastPtr.x, lastPtr.y); }
+stageEl.classList.add('probing');
+
+const outroEl=document.getElementById('outro');
+document.getElementById('outro-big').textContent =
+  `${PROJECTS.length} projects are in this corridor. The film stops for two.`;
+document.getElementById('replay').addEventListener('click', ()=>{
+  seek(0); playing=true; el.play.textContent="Pause"; last=performance.now();
+});
 el.scrub.addEventListener("input", ()=> seek(parseInt(el.scrub.value,10)/100));
 el.play.addEventListener("click", ()=>{
   playing=!playing; el.play.textContent=playing?"Pause":"Play";
