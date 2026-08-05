@@ -1,676 +1,103 @@
-<title>Nothing Learns Alone</title>
+<title>animation — Pappydapimp69</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  /* ── tokens ───────────────────────────────────────────────────────────
-     Two designed worlds, not an inversion: dark is a scope screen (ink
-     ground, phosphor structure), light is plotter paper (bone ground,
-     graphite structure). Colour carries one real distinction throughout —
-     a seam corroborated by two or more independent lessons vs a seam
-     resting on one. That is the corpus's own epistemics, not decoration. */
   :root{
-    --bg:#0d1012; --bg2:#141819; --panel:#111517; --line:#2b3336;
+    --bg:#0d1012; --panel:#111517; --line:#2b3336;
     --ink:#dbe3e2; --dim:#7f8f91; --faint:#4d5a5c;
-    --multi:#57bfa9;      /* corroborated: 2+ independent lessons */
-    --single:#d9993f;     /* single-source: re-verify first */
-    --alone:#6b787a;      /* never co-verified */
-    --hot:#e6ede9;
+    --multi:#57bfa9; --single:#d9993f;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
-    --shadow:0 10px 40px rgba(0,0,0,.5);
   }
   @media (prefers-color-scheme: light){
-    :root{
-      --bg:#e7e5de; --bg2:#dedbd2; --panel:#f2f0ea; --line:#c3c0b5;
-      --ink:#1c2224; --dim:#5f6b6d; --faint:#9aa3a2;
-      --multi:#0f7d69; --single:#a2631a; --alone:#98a09f; --hot:#0b0f10;
-      --shadow:0 10px 32px rgba(30,35,35,.18);
-    }
+    :root{ --bg:#e7e5de; --panel:#f2f0ea; --line:#c3c0b5;
+      --ink:#1c2224; --dim:#5f6b6d; --faint:#9aa3a2; --multi:#0f7d69; --single:#a2631a; }
   }
-  :root[data-theme="dark"]{
-    --bg:#0d1012; --bg2:#141819; --panel:#111517; --line:#2b3336;
-    --ink:#dbe3e2; --dim:#7f8f91; --faint:#4d5a5c;
-    --multi:#57bfa9; --single:#d9993f; --alone:#6b787a; --hot:#e6ede9;
-    --shadow:0 10px 40px rgba(0,0,0,.5);
-  }
-  :root[data-theme="light"]{
-    --bg:#e7e5de; --bg2:#dedbd2; --panel:#f2f0ea; --line:#c3c0b5;
-    --ink:#1c2224; --dim:#5f6b6d; --faint:#9aa3a2;
-    --multi:#0f7d69; --single:#a2631a; --alone:#98a09f; --hot:#0b0f10;
-    --shadow:0 10px 32px rgba(30,35,35,.18);
-  }
+  :root[data-theme="dark"]{ --bg:#0d1012; --panel:#111517; --line:#2b3336;
+    --ink:#dbe3e2; --dim:#7f8f91; --faint:#4d5a5c; --multi:#57bfa9; --single:#d9993f; }
+  :root[data-theme="light"]{ --bg:#e7e5de; --panel:#f2f0ea; --line:#c3c0b5;
+    --ink:#1c2224; --dim:#5f6b6d; --faint:#9aa3a2; --multi:#0f7d69; --single:#a2631a; }
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0}
-  body{background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;
-    -webkit-font-smoothing:antialiased}
-  canvas{display:block;width:100vw;height:100vh;touch-action:none;cursor:grab}
-  canvas.grabbing{cursor:grabbing}
-  canvas.overnode{cursor:pointer}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);
+    -webkit-font-smoothing:antialiased;line-height:1.6}
+  .wrap{max-width:76ch;margin:0 auto;padding:64px 24px 96px}
+  h1{font-size:13px;font-weight:600;letter-spacing:.34em;text-transform:uppercase;margin:0}
+  .rule{height:1px;background:var(--line);margin:14px 0 14px}
+  .lede{font-size:12px;color:var(--dim);margin:0 0 42px;text-wrap:pretty;max-width:62ch}
+  .lede b{color:var(--ink);font-weight:600}
 
-  .hud{position:fixed;inset:0;pointer-events:none;z-index:2}
-  .hud > *{pointer-events:auto}
-
-  .masthead{position:absolute;left:22px;top:20px;max-width:min(46ch,44vw)}
-  .masthead h1{margin:0;font-size:13px;font-weight:600;letter-spacing:.34em;
-    text-transform:uppercase;color:var(--ink)}
-  .masthead .rule{height:1px;background:var(--line);margin:11px 0 10px}
-  .masthead p{margin:0;font-size:11.5px;line-height:1.65;color:var(--dim);text-wrap:pretty}
-  .masthead p b{color:var(--ink);font-weight:600}
-  .caveat{margin-top:11px;padding-top:9px;border-top:1px solid var(--line);
-    font-size:10px;line-height:1.7;color:var(--faint);text-wrap:pretty}
-  .caveat b{color:var(--dim);font-weight:400}
-
-  .figures{position:absolute;left:22px;bottom:20px;display:flex;gap:22px;flex-wrap:wrap}
-  .fig{min-width:74px}
-  .fig .v{font-size:21px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink);line-height:1}
-  .fig .k{margin-top:5px;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
-  .fig .sw{display:inline-block;width:8px;height:8px;margin-right:5px;vertical-align:1px;border-radius:1px}
-
-  /* the detail panel occupies the right edge, so the tools have to move
-     out from under it rather than sit behind it — verified by a click
-     that the panel intercepted */
-  .tools{position:absolute;right:20px;top:20px;display:flex;flex-direction:column;gap:7px;align-items:flex-end;
-    transition:transform .26s cubic-bezier(.22,.61,.36,1)}
-  body.panelopen .tools{transform:translateX(calc(-1 * min(430px,92vw) - 12px))}
-  button{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
-    color:var(--dim);background:transparent;border:1px solid var(--line);padding:7px 11px;
-    cursor:pointer;transition:color .15s,border-color .15s,background .15s}
-  button:hover{color:var(--ink);border-color:var(--dim)}
-  button[aria-pressed="true"]{color:var(--bg);background:var(--ink);border-color:var(--ink)}
-  button:focus-visible{outline:2px solid var(--multi);outline-offset:2px}
-
-  .hint{position:absolute;right:20px;bottom:20px;font-size:10px;letter-spacing:.07em;
-    color:var(--faint);text-align:right;line-height:1.8}
-  .hint kbd{font-family:inherit;color:var(--dim);border:1px solid var(--line);
-    padding:1px 4px;border-radius:2px}
-
-  /* trace readout — the discovery engine's answer line */
-  .trace{position:absolute;left:50%;transform:translateX(-50%);bottom:22px;
-    max-width:min(78ch,86vw);background:var(--panel);border:1px solid var(--line);
-    padding:11px 15px;font-size:11.5px;line-height:1.6;color:var(--dim);
-    box-shadow:var(--shadow);opacity:0;transition:opacity .2s;pointer-events:none}
-  .trace.on{opacity:1;pointer-events:auto}
-  .trace b{color:var(--ink);font-weight:600}
-  .trace .chain{margin-top:7px;color:var(--ink);word-break:break-word;font-size:11px}
-  .trace .arrow{color:var(--multi);padding:0 5px}
-
-  /* detail panel */
-  .panel{position:absolute;right:0;top:0;height:100%;width:min(430px,92vw);
-    background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow);
-    transform:translateX(101%);transition:transform .26s cubic-bezier(.22,.61,.36,1);
-    display:flex;flex-direction:column;z-index:3}
-  .panel.on{transform:none}
-  .panel header{padding:20px 22px 14px;border-bottom:1px solid var(--line);flex:0 0 auto}
-  .panel .close{position:absolute;right:14px;top:15px;border:none;padding:5px 7px;font-size:14px;line-height:1}
-  .panel h2{margin:0 0 9px;font-size:15px;letter-spacing:.01em;color:var(--ink);
-    word-break:break-word;padding-right:34px}
-  .meta{display:flex;gap:16px;flex-wrap:wrap;font-size:10px;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--dim)}
-  .meta span b{color:var(--ink);font-variant-numeric:tabular-nums}
-  .panel .body{overflow-y:auto;padding:4px 22px 26px;flex:1 1 auto}
-  .sect{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);
-    margin:20px 0 9px;padding-bottom:6px;border-bottom:1px solid var(--line)}
-  .nbrs{display:flex;flex-wrap:wrap;gap:5px}
-  .nbr{font-size:10.5px;padding:4px 8px;border:1px solid var(--line);color:var(--dim);
-    cursor:pointer;background:transparent;text-transform:none;letter-spacing:0}
-  .nbr:hover{color:var(--ink);border-color:var(--dim)}
-  .nbr i{font-style:normal;color:var(--faint);margin-left:5px;font-variant-numeric:tabular-nums}
-  .nbr.m{border-color:color-mix(in srgb,var(--multi) 55%,var(--line))}
-  .lesson{padding:13px 0;border-bottom:1px solid var(--line)}
-  .lesson:last-child{border-bottom:none}
-  .lesson .lt{font-size:12px;color:var(--ink);line-height:1.5}
-  .lesson .lg{margin-top:6px;font-size:9.5px;letter-spacing:.08em;color:var(--faint)}
-  .lesson .lr{margin-top:8px;font-size:11px;line-height:1.65;color:var(--dim);text-wrap:pretty}
-  .empty{font-size:11.5px;color:var(--dim);line-height:1.7;padding:6px 0}
-
-  @media (max-width:720px){
-    .masthead{max-width:70vw}
-    .masthead p{display:none}
-    body.panelopen .tools{opacity:0;pointer-events:none;transform:none}
-    .figures{gap:14px;bottom:14px;left:16px}
-    .fig .v{font-size:16px}
-    .hint{display:none}
-  }
-  @media (prefers-reduced-motion:reduce){
-    .panel,.tools{transition:none}
-    .trace{transition:none}
-  }
+  .grp{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);
+    margin:42px 0 4px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+  a.item{display:block;text-decoration:none;color:inherit;padding:17px 0;
+    border-bottom:1px solid var(--line)}
+  a.item:hover .t{color:var(--multi)}
+  a.item:focus-visible{outline:2px solid var(--multi);outline-offset:3px}
+  .row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .t{font-size:14.5px;color:var(--ink);transition:color .15s}
+  .tag{font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+    border:1px solid var(--line);padding:2px 6px;color:var(--faint);white-space:nowrap}
+  .tag.snd{color:var(--single);border-color:color-mix(in srgb,var(--single) 45%,var(--line))}
+  .tag.act{color:var(--multi);border-color:color-mix(in srgb,var(--multi) 45%,var(--line))}
+  .d{margin-top:7px;font-size:11.5px;color:var(--dim);text-wrap:pretty;max-width:64ch}
+  .foot{margin-top:56px;font-size:10.5px;color:var(--faint);line-height:1.8;text-wrap:pretty}
+  .foot code{color:var(--dim)}
 </style>
 
-<canvas id="c"></canvas>
+<div class="wrap">
+  <h1>Animation</h1>
+  <div class="rule"></div>
+  <p class="lede">Pieces built from the <b>Brain</b> corpus — 124 real projects and 568 real
+    lessons. Each opens as its own page. Where a piece has sound it begins on a tap, because
+    browsers hold audio until you ask for it.</p>
 
-<div class="hud">
-  <div class="masthead">
-    <h1>Nothing Learns Alone</h1>
-    <div class="rule"></div>
-    <p>A lesson becomes knowledge when it is stress-tested against another
-       system. This is every such seam in the corpus — <b>269</b> of them,
-       drawn from <b>568</b> real lessons. <b>197</b> rest on a single
-       source. <b>28</b> projects have never been tested against anything
-       at all.</p>
-    <p class="caveat">Edges are derived from <b>Composed:</b> citations. Two open
-      questions in the corpus bear on this drawing: a known parser flaw can read an
-      illustrative mention of another system as a genuine composition, so a small
-      number of these seams are spurious — and because the graph records no negative
-      edges, a seam shown as untested may in fact have been tested and failed.</p>
-  </div>
+  <div class="grp">Interactive</div>
+  <a class="item" href="nothing-learns-alone.html">
+    <div class="row"><span class="t">Nothing Learns Alone</span>
+      <span class="tag act">Interactive</span><span class="tag">Silent</span></div>
+    <div class="d">Every co-verification seam in the corpus: 269 of them across 124 projects.
+      72 are corroborated by two or more independent lessons; 197 rest on a single source; 28
+      projects have never been tested against anything at all. Drag, zoom, open any project,
+      and shift-click a second to trace the real chain between them.</div>
+  </a>
 
-  <div class="tools">
-    <button id="t-seams" aria-pressed="false">Untested seams</button>
-    <button id="t-alone" aria-pressed="true">Show isolated</button>
-    <button id="t-theme">Theme</button>
-    <button id="t-reset">Reset view</button>
-  </div>
+  <div class="grp">Films</div>
+  <a class="item" href="many-small-fires.html">
+    <div class="row"><span class="t">Many Small Fires</span>
+      <span class="tag snd">Sound</span><span class="tag">210s</span></div>
+    <div class="d">The whole story, not just the last day of it — all 124 projects as a
+      corridor in real chronological order, with a leitmotif score that only completes once,
+      on the final line. Hover any light during playback to name it.</div>
+  </a>
+  <a class="item" href="still-growing.html">
+    <div class="row"><span class="t">Still Growing</span>
+      <span class="tag snd">Sound</span></div>
+    <div class="d">An earlier self-portrait: every idea and lesson filed system-wide, gathered
+      into one growing shape.</div>
+  </a>
+  <a class="item" href="lamplighter.html">
+    <div class="row"><span class="t">The Lamplighter</span>
+      <span class="tag snd">Sound</span></div>
+    <div class="d">The first of these — a 3D browser cutscene built from Brain kernels.</div>
+  </a>
 
-  <div class="figures">
-    <div class="fig"><div class="v" id="f-nodes">—</div><div class="k">projects</div></div>
-    <div class="fig"><div class="v" id="f-lessons">—</div><div class="k">lessons</div></div>
-    <div class="fig"><div class="v" id="f-multi">—</div>
-      <div class="k"><span class="sw" style="background:var(--multi)"></span>corroborated</div></div>
-    <div class="fig"><div class="v" id="f-single">—</div>
-      <div class="k"><span class="sw" style="background:var(--single)"></span>single-source</div></div>
-    <div class="fig"><div class="v" id="f-alone">—</div>
-      <div class="k"><span class="sw" style="background:var(--alone)"></span>never tested</div></div>
-  </div>
+  <div class="grp">Experiments</div>
+  <a class="item" href="flex.html">
+    <div class="row"><span class="t">Flex</span></div>
+    <div class="d">The same real story told with more swagger.</div>
+  </a>
+  <a class="item" href="wordless-retelling.html">
+    <div class="row"><span class="t">Wordless Retelling</span></div>
+    <div class="d">The growth story with zero visible language.</div>
+  </a>
+  <a class="item" href="growth-almanac.html">
+    <div class="row"><span class="t">Growth Almanac</span></div>
+    <div class="d">The original day-by-day almanac.</div>
+  </a>
+  <a class="item" href="visual-concept-dynamic-lights.html">
+    <div class="row"><span class="t">Dynamic Lights</span><span class="tag">Concept</span></div>
+    <div class="d">A standalone lighting study, never wired into a cutscene.</div>
+  </a>
 
-  <div class="hint">
-    <div><kbd>drag</kbd> pan · <kbd>scroll</kbd> zoom · <kbd>click</kbd> open</div>
-    <div><kbd>shift</kbd>+click a second project to trace a path</div>
-  </div>
-
-  <div class="trace" id="trace"></div>
+  <p class="foot">Project names, dates and lesson <em>counts</em> are drawn from the live
+    corpus. The lessons' own text is held in a private repository and is not published here —
+    these pages show the structure the corpus forms, not its contents.<br>
+    Source: <code>github.com/Pappydapimp69/animation</code></p>
 </div>
-
-<aside class="panel" id="panel" aria-live="polite">
-  <header>
-    <button class="close" id="p-close" aria-label="Close">✕</button>
-    <h2 id="p-name"></h2>
-    <div class="meta">
-      <span><b id="p-lessons">0</b> lessons</span>
-      <span><b id="p-seams">0</b> seams</span>
-      <span id="p-dates"></span>
-    </div>
-  </header>
-  <div class="body">
-    <div id="p-nbrwrap"><div class="sect">Co-verified with</div>
-      <div class="nbrs" id="p-nbrs"></div></div>
-    <div class="sect">Lessons</div>
-    <div id="p-lessonlist"></div>
-  </div>
-</aside>
-
-<script id="core-data" type="application/json">{"edges": [{"a": "sandbox-combined-brain-viz-growth", "b": "brain", "w": 8, "d": 8, "s": 0}, {"a": "sandbox-combined-garden-viz", "b": "brain", "w": 7, "d": 7, "s": 0}, {"a": "sandbox-combined-garden-viz", "b": "sandbox-graph-viz", "w": 7, "d": 7, "s": 0}, {"a": "sandbox-graph-viz", "b": "brain", "w": 5, "d": 5, "s": 0}, {"a": "dog", "b": "the-game-wrong-sky", "w": 5, "d": 5, "s": 0}, {"a": "sandbox-dbz-team-combat", "b": "brain-builder", "w": 5, "d": 5, "s": 1}, {"a": "sandbox-power-scaling", "b": "brain-builder", "w": 5, "d": 5, "s": 0}, {"a": "sandbox-combined-skilltree-formula", "b": "sandbox-toposort", "w": 4, "d": 4, "s": 0}, {"a": "sandbox-dbz-team-combat", "b": "sandbox-power-scaling", "w": 4, "d": 4, "s": 1}, {"a": "sandbox-combined-audio-realtime", "b": "sandbox-combined-bloom-audio", "w": 3, "d": 3, "s": 0}, {"a": "sandbox-combined-bloom-audio", "b": "sandbox-genesis-psg", "w": 3, "d": 3, "s": 0}, {"a": "sandbox-combined-brain-viz-growth", "b": "test", "w": 3, "d": 3, "s": 0}, {"a": "brain", "b": "test", "w": 3, "d": 3, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "the-game-the-recursion", "w": 3, "d": 3, "s": 0}, {"a": "sandbox-combined-loop-combat", "b": "sandbox-power-scaling", "w": 3, "d": 3, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "sandbox-dbz-combat", "w": 3, "d": 3, "s": 0}, {"a": "sandbox-astar-replan", "b": "sandbox-combined-movement-stack", "w": 3, "d": 3, "s": 1}, {"a": "sandbox-astar-replan", "b": "sandbox-savemigrate", "w": 3, "d": 3, "s": 1}, {"a": "sandbox-combined-pathmetrics", "b": "sandbox-pathfinding-astar-heuristic", "w": 3, "d": 3, "s": 0}, {"a": "the-game-the-recursion", "b": "the-game-wrong-sky", "w": 3, "d": 3, "s": 0}, {"a": "sandbox-combined-skilltree-formula", "b": "sandbox-expr", "w": 3, "d": 3, "s": 1}, {"a": "sandbox-combined-wfc-keylock", "b": "sandbox-keylock", "w": 3, "d": 3, "s": 1}, {"a": "sandbox-combined-wfc-keylock", "b": "sandbox-procgen-wfc", "w": 3, "d": 3, "s": 0}, {"a": "dog", "b": "the-game-prologue", "w": 3, "d": 3, "s": 0}, {"a": "collective", "b": "garden", "w": 3, "d": 3, "s": 0}, {"a": "sandbox-anim", "b": "sandbox-brain-loop2-frameacc-loopseam", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-anim", "b": "sandbox-combined-audio-realtime", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-brain-loop1-denormal-swept", "b": "sandbox-collision", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-brain-loop1-denormal-swept", "b": "sandbox-combined-audio-realtime", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-collision", "b": "sandbox-combined-audio-realtime", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-anim", "b": "sandbox-combined-game-loop", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-brain-loop2-frameacc-loopseam", "b": "sandbox-combined-game-loop", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-action-resolver", "b": "dog", "w": 2, "d": 2, "s": 1}, {"a": "dog", "b": "the-game-the-waiting-city", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-bloom-audio", "b": "sandbox-genesis-mix", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-genesis-mix", "b": "sandbox-genesis-psg", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-bloom-audio", "b": "sandbox-savemigrate", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-audio-realtime", "b": "sandbox-genesis-fm", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-bloom-audio", "b": "sandbox-genesis-fm", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-bloom", "b": "sandbox-combined-bloom-audio", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-bloom", "b": "sandbox-combined-game-loop", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-combined-accessibility-render", "b": "sandbox-combined-brain-viz-growth", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-accessibility-render", "b": "the-game-the-recursion", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-brain-viz-growth", "b": "the-game-the-recursion", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-cadence-frametick", "b": "sandbox-combined-game-loop", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-diagonal-distance", "b": "sandbox-pathfinding-diagonal", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-distance", "b": "sandbox-pathfinding-diagonal", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-skilltree-formula", "b": "sandbox-graph-viz", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-power-scaling", "b": "the-game-the-recursion", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-combined-loop-combat", "b": "sandbox-dbz-combat", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-dbz-combat", "b": "sandbox-power-scaling", "w": 2, "d": 2, "s": 1}, {"a": "opticon", "b": "the-game-prologue", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-combined-pathmetrics", "b": "sandbox-distance", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-combined-pathmetrics", "b": "sandbox-pathfinding-diagonal", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-distance", "b": "sandbox-pathfinding-astar-heuristic", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-pathfinding-astar-heuristic", "b": "sandbox-pathfinding-diagonal", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-astar-replan", "b": "sandbox-combined-game-loop", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-astar-replan", "b": "sandbox-combined-rpg-progression", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-combined-rpg-progression", "b": "sandbox-loot-pity", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-combined-rpg-progression", "b": "sandbox-savemigrate", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-loot-pity", "b": "sandbox-savemigrate", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-expr", "b": "sandbox-toposort", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-keylock", "b": "sandbox-procgen-wfc", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-dbz-merged", "b": "sandbox-power-scaling", "w": 2, "d": 2, "s": 0}, {"a": "sandbox-dbz-merged", "b": "brain-builder", "w": 2, "d": 2, "s": 0}, {"a": "dog", "b": "lockstep", "w": 2, "d": 2, "s": 1}, {"a": "dog", "b": "test", "w": 2, "d": 2, "s": 1}, {"a": "collective", "b": "the-game-the-recursion", "w": 2, "d": 2, "s": 0}, {"a": "garden", "b": "the-game-the-recursion", "w": 2, "d": 2, "s": 0}, {"a": "dog", "b": "opticon", "w": 2, "d": 2, "s": 0}, {"a": "the-game-prologue", "b": "the-game-the-waiting-city", "w": 2, "d": 2, "s": 0}, {"a": "the-game-prologue", "b": "the-game-wrong-sky", "w": 2, "d": 2, "s": 1}, {"a": "sandbox-brain-loop2-frameacc-loopseam", "b": "sandbox-combined-audio-realtime", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-capture-layer-starves-tutorial", "b": "dog", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-capture-layer-starves-tutorial", "b": "draft", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-capture-layer-starves-tutorial", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "draft", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-action-resolver", "b": "the-game-the-waiting-city", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-bloom-audio", "b": "sandbox-combined-game-loop", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-bloom", "b": "sandbox-savemigrate", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-anim", "b": "sandbox-combined-brain-viz-growth", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-anim", "b": "brain", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-brain-viz-growth", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "brain", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-cadence-frametick", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-anim", "b": "sandbox-combined-cutscene-resume", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-anim", "b": "sandbox-combined-save-system", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-anim", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-cutscene-resume", "b": "sandbox-combined-save-system", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-cutscene-resume", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-save-system", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-diagonal-distance", "b": "sandbox-distance", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "sandbox-combined-garden-viz", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "brain", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-garden-viz", "b": "sandbox-combined-graph-editor", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-graph-editor", "b": "sandbox-graph-viz", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-garden-viz", "b": "sandbox-combined-skilltree-formula", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-hold-dismiss", "b": "dog", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-hold-dismiss", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-bloom-audio", "b": "sandbox-combined-lfsr-peak-meter", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-lfsr-peak-meter", "b": "sandbox-genesis-fm", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-loop-combat", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "sandbox-combined-loop-combat", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "sandbox-power-scaling", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-mobile-visibility", "b": "dog", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-mobile-visibility", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-movement-stack", "b": "sandbox-savemigrate", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-anim", "b": "sandbox-astar-replan", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-anim", "b": "sandbox-collision", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-anim", "b": "sandbox-combined-graph-editor", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-anim", "b": "sandbox-combined-integration", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-anim", "b": "sandbox-combined-movement-stack", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-astar-replan", "b": "sandbox-collision", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-astar-replan", "b": "sandbox-combined-graph-editor", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-astar-replan", "b": "sandbox-combined-integration", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-collision", "b": "sandbox-combined-graph-editor", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-collision", "b": "sandbox-combined-integration", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-collision", "b": "sandbox-combined-movement-stack", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-graph-editor", "b": "sandbox-combined-integration", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-graph-editor", "b": "sandbox-combined-movement-stack", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-integration", "b": "sandbox-combined-movement-stack", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-opticon-prologue-latch", "b": "opticon", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-opticon-prologue-latch", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-opticon-test-connectivity", "b": "opticon", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-opticon-test-connectivity", "b": "test", "w": 1, "d": 1, "s": 0}, {"a": "opticon", "b": "test", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-pathfinding-stack", "b": "sandbox-combined-pathmetrics", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-pathfinding-stack", "b": "sandbox-distance", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-pathfinding-stack", "b": "sandbox-pathfinding-astar-heuristic", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-pathfinding-stack", "b": "sandbox-pathfinding-diagonal", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-polling-click", "b": "dog", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-polling-click", "b": "the-game-the-waiting-city", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-quest-offer-batch", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-quest-offer-batch", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "sandbox-combined-realtime-loop", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-realtime-loop", "b": "sandbox-dbz-combat", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-realtime-loop", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-combat", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-astar-replan", "b": "sandbox-combined-replan-gameloop", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "sandbox-combined-replan-gameloop", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-astar-replan", "b": "sandbox-combined-replan-save", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "sandbox-combined-replan-save", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "sandbox-savemigrate", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-replan-save", "b": "sandbox-savemigrate", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-astar-replan", "b": "sandbox-loot-pity", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-astar-replan", "b": "sandbox-procgen-ca", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-rpg-progression", "b": "sandbox-procgen-ca", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-loot-pity", "b": "sandbox-procgen-ca", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-procgen-ca", "b": "sandbox-savemigrate", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-rpg-progression", "b": "sandbox-dbz-team-combat", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-graph-editor", "b": "sandbox-combined-rpg-progression", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-anim", "b": "sandbox-combined-rpg-progression", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-game-loop", "b": "sandbox-combined-rpg-progression", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-movement-stack", "b": "sandbox-combined-rpg-progression", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-rpg-progression", "b": "sandbox-dbz-combat", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-rpg-progression", "b": "sandbox-power-scaling", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-rpg-progression", "b": "sandbox-undo-redo", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-combat", "b": "sandbox-loot-pity", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-dbz-combat", "b": "sandbox-savemigrate", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-dbz-combat", "b": "sandbox-undo-redo", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-loot-pity", "b": "sandbox-power-scaling", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-loot-pity", "b": "sandbox-undo-redo", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-power-scaling", "b": "sandbox-savemigrate", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-power-scaling", "b": "sandbox-undo-redo", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-savemigrate", "b": "sandbox-undo-redo", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-save-lifecycle", "b": "dog", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-save-lifecycle", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-seed-drawstream", "b": "dog", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-seed-drawstream", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "dog", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-rpg-progression", "b": "sandbox-combined-save-system", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-rpg-progression", "b": "sandbox-combined-skilltree-formula", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-save-system", "b": "sandbox-combined-skilltree-formula", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-skilltree-formula", "b": "sandbox-csv", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-csv", "b": "sandbox-expr", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-graph-viz", "b": "sandbox-toposort", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-skilltree-formula", "b": "sandbox-ratelimit", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-expr", "b": "sandbox-ratelimit", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-ratelimit", "b": "sandbox-toposort", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-skilltree-formula", "b": "sandbox-myers-diff", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-myers-diff", "b": "sandbox-toposort", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-sparse-map", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-sparse-map", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "sandbox-combined-tickorder-cancel", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-tickorder-cancel", "b": "sandbox-dbz-combat", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-astar-replan", "b": "sandbox-combined-undo-replan", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-astar-replan", "b": "sandbox-undo-redo", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-undo-replan", "b": "sandbox-undo-redo", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-wfc-keylock", "b": "sandbox-procgen-ca", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-wfc-keylock", "b": "sandbox-procgen-lsystem", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-keylock", "b": "sandbox-procgen-lsystem", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-wfc-keylock", "b": "sandbox-maze", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-astar-replan", "b": "sandbox-combined-wfc-keylock", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-astar-replan", "b": "sandbox-procgen-wfc", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-wfc-keylock", "b": "sandbox-scatter", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-keylock", "b": "sandbox-scatter", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-procgen-wfc", "b": "sandbox-scatter", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-astar-replan", "b": "sandbox-dog-pathfinding", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-edge-draft-opticon-scrub", "b": "draft", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-edge-draft-opticon-scrub", "b": "opticon", "w": 1, "d": 1, "s": 1}, {"a": "draft", "b": "opticon", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-astar-replan", "b": "sandbox-pathfinding-flowfield", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-brain-loop1-denormal-swept", "b": "sandbox-phantom-voice-eats-budget", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-audio-realtime", "b": "sandbox-phantom-voice-eats-budget", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-graph-viz", "b": "sandbox-rankpull-forcelayout", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-resolver-starves-tutorial", "b": "dog", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-resolver-starves-tutorial", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-rng-determinism-not-sufficient-for-replay", "b": "test", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-rng-determinism-not-sufficient-for-replay", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 1}, {"a": "test", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-scatter", "b": "sandbox-shuffle", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-combined-game-loop", "b": "sandbox-combined-movement-stack", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "sandbox-seam-loop-movement", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-movement-stack", "b": "sandbox-seam-loop-movement", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-seed-vs-replay-verification", "b": "dog", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-seed-vs-replay-verification", "b": "draft", "w": 1, "d": 1, "s": 0}, {"a": "dog", "b": "draft", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-validation-ladder-vs-key-collision", "b": "draft", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-validation-ladder-vs-key-collision", "b": "test", "w": 1, "d": 1, "s": 1}, {"a": "draft", "b": "test", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-anim", "b": "sandbox-voice-pool-reset", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-audio-realtime", "b": "sandbox-voice-pool-reset", "w": 1, "d": 1, "s": 0}, {"a": "brain-builder", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-team-combat", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "brain-builder", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-loop-combat", "b": "sandbox-dbz-merged", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-loop-combat", "b": "brain-builder", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-merged", "b": "sandbox-dbz-team-combat", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-rankpull-forcelayout", "b": "brain", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-rankpull-forcelayout", "b": "dog", "w": 1, "d": 1, "s": 0}, {"a": "brain", "b": "dog", "w": 1, "d": 1, "s": 0}, {"a": "test", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-action-resolver", "b": "sandbox-voice-pool-reset", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-voice-pool-reset", "b": "dog", "w": 1, "d": 1, "s": 1}, {"a": "sandbox-dog-pathfinding", "b": "dog", "w": 1, "d": 1, "s": 0}, {"a": "draft", "b": "memory", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-loop-combat", "b": "sandbox-dbz-team-combat", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-loop-combat", "b": "brain", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-loop-combat", "b": "draft", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-combat", "b": "sandbox-dbz-team-combat", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-combat", "b": "brain", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-combat", "b": "draft", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-team-combat", "b": "brain", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-team-combat", "b": "draft", "w": 1, "d": 1, "s": 0}, {"a": "brain", "b": "draft", "w": 1, "d": 1, "s": 0}, {"a": "dog", "b": "mirage", "w": 1, "d": 1, "s": 0}, {"a": "mirage", "b": "opticon", "w": 1, "d": 1, "s": 0}, {"a": "mirage", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "opticon", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-narrative-flags", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "the-game-prologue", "b": "the-game-the-answering-deep", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-combat", "b": "the-game-prologue", "w": 1, "d": 1, "s": 0}, {"a": "the-game-prologue", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-save-system", "b": "the-game-the-answering-deep", "w": 1, "d": 1, "s": 0}, {"a": "the-game-the-answering-deep", "b": "the-game-the-waiting-city", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-astar-replan", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-skilltree-formula", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "the-game-the-recursion", "b": "the-game-the-waiting-city", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-game-loop", "b": "memory", "w": 1, "d": 1, "s": 0}, {"a": "memory", "b": "the-game-the-recursion", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-loot-pity", "b": "the-game-the-waiting-city", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-movement-stack", "b": "the-game-the-waiting-city", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-skilltree-formula", "b": "the-game-the-waiting-city", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-dbz-combat", "b": "the-game-the-waiting-city", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-combined-save-system", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "sandbox-astar-replan", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "the-game-the-answering-deep", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}, {"a": "the-game-the-waiting-city", "b": "the-game-wrong-sky", "w": 1, "d": 1, "s": 0}], "nodes": [{"id": "dog", "n": 94, "s": "2026-07-01", "e": "2026-08-01", "g": 1}, {"id": "opticon", "n": 37, "s": "2026-07-23", "e": "2026-08-03", "g": 1}, {"id": "the-game-prologue", "n": 27, "s": "2026-07-07", "e": "2026-07-15", "g": 1}, {"id": "test", "n": 25, "s": "2026-06-30", "e": "2026-07-13", "g": 1}, {"id": "brain", "n": 21, "s": "2026-07-04", "e": "2026-08-03", "g": 1}, {"id": "the-game-the-recursion", "n": 21, "s": "2026-07-09", "e": "2026-07-13", "g": 1}, {"id": "the-game-wrong-sky", "n": 19, "s": "2026-07-07", "e": "2026-07-13", "g": 1}, {"id": "the-game-the-waiting-city", "n": 17, "s": "2026-07-08", "e": "2026-07-13", "g": 1}, {"id": "draft", "n": 15, "s": "2026-07-13", "e": "2026-07-18", "g": 1}, {"id": "collective", "n": 13, "s": "2026-07-11", "e": "2026-07-31", "g": 1}, {"id": "the-game-the-answering-deep", "n": 13, "s": "2026-07-09", "e": "2026-07-13", "g": 1}, {"id": "brain-builder", "n": 11, "s": "2026-07-26", "e": "2026-07-30", "g": 1}, {"id": "lockstep", "n": 10, "s": "2026-06-15", "e": "2026-06-15", "g": 1}, {"id": "sandbox-combined-brain-viz-growth", "n": 9, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-garden-viz", "n": 9, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-bloom-audio", "n": 8, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "memory", "n": 8, "s": "2026-07-02", "e": "2026-07-20", "g": 1}, {"id": "dbh", "n": 6, "s": "2026-07-05", "e": "2026-07-06", "g": 0}, {"id": "sandbox-anim", "n": 6, "s": "2026-07-11", "e": "2026-07-26", "g": 1}, {"id": "sandbox-combined-rpg-progression", "n": 6, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-skilltree-formula", "n": 6, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-wfc-keylock", "n": 6, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "garden", "n": 6, "s": "2026-07-17", "e": "2026-07-18", "g": 1}, {"id": "pocketzane", "n": 6, "s": "2026-06-14", "e": "2026-06-14", "g": 0}, {"id": "sandbox-dbz-combat", "n": 5, "s": "2026-07-11", "e": "2026-07-13", "g": 1}, {"id": "sandbox-dbz-team-combat", "n": 5, "s": "2026-07-12", "e": "2026-07-12", "g": 1}, {"id": "sandbox-undo-redo", "n": 5, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "sandbox-combined-game-loop", "n": 4, "s": "2026-07-11", "e": "2026-07-26", "g": 1}, {"id": "sandbox-combined-integration", "n": 4, "s": "2026-07-11", "e": "2026-07-12", "g": 1}, {"id": "sandbox-graph-viz", "n": 4, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "mirage", "n": 4, "s": "2026-07-30", "e": "2026-08-03", "g": 1}, {"id": "shadow", "n": 4, "s": "2026-07-01", "e": "2026-07-01", "g": 0}, {"id": "sandbox-capture-layer-starves-tutorial", "n": 3, "s": "2026-07-20", "e": "2026-07-26", "g": 1}, {"id": "sandbox-combined-audio-realtime", "n": 3, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-diagonal-distance", "n": 3, "s": "2026-07-13", "e": "2026-07-13", "g": 2}, {"id": "sandbox-genesis-fm", "n": 3, "s": "2026-07-05", "e": "2026-07-13", "g": 1}, {"id": "sandbox-myers-diff", "n": 3, "s": "2026-07-01", "e": "2026-07-01", "g": 1}, {"id": "sandbox-savemigrate", "n": 3, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "scabby-the-spoon", "n": 3, "s": "2026-07-13", "e": "2026-07-13", "g": 0}, {"id": "brain-pitch", "n": 3, "s": "2026-07-16", "e": "2026-07-18", "g": 0}, {"id": "ideas", "n": 3, "s": "2026-07-11", "e": "2026-08-05", "g": 0}, {"id": "sandbox-astar-replan", "n": 2, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "sandbox-bloom", "n": 2, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "sandbox-brain-loop1-denormal-swept", "n": 2, "s": "2026-07-13", "e": "2026-07-18", "g": 1}, {"id": "sandbox-collision", "n": 2, "s": "2026-07-05", "e": "2026-07-26", "g": 1}, {"id": "sandbox-combined-accessibility-render", "n": 2, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-cadence-frametick", "n": 2, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-graph-editor", "n": 2, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "sandbox-combined-loop-combat", "n": 2, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-movement-stack", "n": 2, "s": "2026-07-12", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-narrative-flags", "n": 2, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-pathmetrics", "n": 2, "s": "2026-07-13", "e": "2026-07-13", "g": 2}, {"id": "sandbox-combined-replan-save", "n": 2, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-save-system", "n": 2, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "sandbox-expr", "n": 2, "s": "2026-07-01", "e": "2026-07-01", "g": 1}, {"id": "sandbox-genesis-psg", "n": 2, "s": "2026-07-05", "e": "2026-07-13", "g": 1}, {"id": "sandbox-geometry-pip", "n": 2, "s": "2026-07-13", "e": "2026-07-20", "g": 0}, {"id": "sandbox-loot-pity", "n": 2, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "sandbox-maze", "n": 2, "s": "2026-07-05", "e": "2026-07-13", "g": 1}, {"id": "sandbox-pathfinding-flowfield", "n": 2, "s": "2026-07-11", "e": "2026-07-13", "g": 1}, {"id": "sandbox-power-scaling", "n": 2, "s": "2026-07-12", "e": "2026-07-12", "g": 1}, {"id": "sandbox-procgen-wfc", "n": 2, "s": "2026-07-11", "e": "2026-07-13", "g": 1}, {"id": "sandbox-resolver-starves-tutorial", "n": 2, "s": "2026-07-13", "e": "2026-07-20", "g": 1}, {"id": "sandbox-scatter", "n": 2, "s": "2026-07-05", "e": "2026-07-13", "g": 1}, {"id": "sandbox-toposort", "n": 2, "s": "2026-07-01", "e": "2026-07-01", "g": 1}, {"id": "codex-visual-snapshots", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 0}, {"id": "collective-reference", "n": 1, "s": "2026-07-09", "e": "2026-07-09", "g": 0}, {"id": "sandbox-brain-loop2-frameacc-loopseam", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-action-resolver", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-cutscene-resume", "n": 1, "s": "2026-07-26", "e": "2026-07-26", "g": 1}, {"id": "sandbox-combined-hold-dismiss", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-lfsr-peak-meter", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-mobile-visibility", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-opticon-prologue-latch", "n": 1, "s": "2026-08-01", "e": "2026-08-01", "g": 1}, {"id": "sandbox-combined-opticon-test-connectivity", "n": 1, "s": "2026-07-31", "e": "2026-07-31", "g": 1}, {"id": "sandbox-combined-pathfinding-stack", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 2}, {"id": "sandbox-combined-polling-click", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-quest-offer-batch", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-realtime-loop", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-replan-gameloop", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-save-lifecycle", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-seed-drawstream", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-sparse-map", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-tickorder-cancel", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-combined-undo-replan", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-crypto-hmac", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 0}, {"id": "sandbox-csv", "n": 1, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "sandbox-cvd-transition-audit", "n": 1, "s": "2026-07-18", "e": "2026-07-18", "g": 0}, {"id": "sandbox-dbz-merged", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-distance", "n": 1, "s": "2026-07-05", "e": "2026-07-05", "g": 2}, {"id": "sandbox-dog-pathfinding", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-edge-draft-opticon-scrub", "n": 1, "s": "2026-08-01", "e": "2026-08-01", "g": 1}, {"id": "sandbox-genesis-mix", "n": 1, "s": "2026-07-05", "e": "2026-07-05", "g": 1}, {"id": "sandbox-keylock", "n": 1, "s": "2026-07-05", "e": "2026-07-05", "g": 1}, {"id": "sandbox-leveldesign-softlock", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 0}, {"id": "sandbox-localization-expansion", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 0}, {"id": "sandbox-offscreen-marker-projection", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 0}, {"id": "sandbox-path-smoothing-validation", "n": 1, "s": "2026-07-18", "e": "2026-07-18", "g": 0}, {"id": "sandbox-pathfinding-astar-heuristic", "n": 1, "s": "2026-07-11", "e": "2026-07-11", "g": 2}, {"id": "sandbox-pathfinding-diagonal", "n": 1, "s": "2026-07-11", "e": "2026-07-11", "g": 2}, {"id": "sandbox-phantom-voice-eats-budget", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 1}, {"id": "sandbox-physics-integration", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 0}, {"id": "sandbox-procgen-ca", "n": 1, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "sandbox-procgen-lsystem", "n": 1, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "sandbox-rankpull-forcelayout", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-ratelimit", "n": 1, "s": "2026-07-11", "e": "2026-07-11", "g": 1}, {"id": "sandbox-research-methodology", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 0}, {"id": "sandbox-rng-determinism-not-sufficient-for-replay", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 1}, {"id": "sandbox-seam-loop-movement", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 1}, {"id": "sandbox-seam-replan-save", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 0}, {"id": "sandbox-seed-vs-replay-verification", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 1}, {"id": "sandbox-shaders-gamma", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 0}, {"id": "sandbox-shadowbias", "n": 1, "s": "2026-07-13", "e": "2026-07-13", "g": 0}, {"id": "sandbox-shuffle", "n": 1, "s": "2026-07-05", "e": "2026-07-05", "g": 1}, {"id": "sandbox-speedrun-rng", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 0}, {"id": "sandbox-story-arc-classifier", "n": 1, "s": "2026-07-18", "e": "2026-07-18", "g": 0}, {"id": "sandbox-typography-measure", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 0}, {"id": "sandbox-validation-ladder-vs-key-collision", "n": 1, "s": "2026-07-20", "e": "2026-07-20", "g": 1}, {"id": "sandbox-voice-pool-reset", "n": 1, "s": "2026-07-26", "e": "2026-07-26", "g": 1}, {"id": "sandbox-weather-vfx", "n": 1, "s": "2026-07-18", "e": "2026-07-18", "g": 0}, {"id": "warden-fables", "n": 1, "s": "2026-06-14", "e": "2026-06-14", "g": 0}, {"id": "animation", "n": 1, "s": "2026-07-30", "e": "2026-07-30", "g": 0}, {"id": "chronicles", "n": 1, "s": "2026-07-05", "e": "2026-07-05", "g": 0}, {"id": "creativity", "n": 1, "s": "2026-07-18", "e": "2026-07-18", "g": 0}], "seams": [{"a": "brain", "b": "opticon", "k": 15}, {"a": "opticon", "b": "the-game-the-waiting-city", "k": 14}, {"a": "brain-builder", "b": "opticon", "k": 13}, {"a": "brain-builder", "b": "the-game-wrong-sky", "k": 13}, {"a": "opticon", "b": "the-game-the-recursion", "k": 13}, {"a": "brain-builder", "b": "dog", "k": 12}, {"a": "draft", "b": "the-game-the-recursion", "k": 12}, {"a": "brain-builder", "b": "the-game-the-waiting-city", "k": 11}, {"a": "collective", "b": "opticon", "k": 11}, {"a": "draft", "b": "the-game-the-waiting-city", "k": 11}, {"a": "test", "b": "lockstep", "k": 11}, {"a": "brain-builder", "b": "draft", "k": 10}, {"a": "brain-builder", "b": "the-game-the-answering-deep", "k": 10}, {"a": "collective", "b": "dog", "k": 10}, {"a": "draft", "b": "the-game-wrong-sky", "k": 10}]}</script>
-<script id="lesson-data" type="application/json">{"sandbox-pathfinding-flowfield": 2, "sandbox-cvd-transition-audit": 1, "sandbox-seam-replan-save": 1, "sandbox-combined-undo-replan": 1, "creativity": 1, "sandbox-genesis-psg": 2, "test": 25, "sandbox-brain-loop1-denormal-swept": 2, "sandbox-capture-layer-starves-tutorial": 3, "sandbox-offscreen-marker-projection": 1, "sandbox-loot-pity": 2, "sandbox-genesis-mix": 1, "sandbox-speedrun-rng": 1, "opticon": 37, "sandbox-combined-realtime-loop": 1, "sandbox-combined-cutscene-resume": 1, "sandbox-combined-audio-realtime": 3, "sandbox-dog-pathfinding": 1, "sandbox-combined-garden-viz": 9, "sandbox-combined-replan-save": 2, "brain-pitch": 3, "sandbox-voice-pool-reset": 1, "sandbox-story-arc-classifier": 1, "the-game-the-waiting-city": 17, "brain": 21, "sandbox-toposort": 2, "sandbox-combined-bloom-audio": 8, "the-game-the-recursion": 21, "sandbox-astar-replan": 2, "pocketzane": 6, "garden": 6, "sandbox-combined-cadence-frametick": 2, "sandbox-myers-diff": 3, "sandbox-combined-pathmetrics": 2, "sandbox-rankpull-forcelayout": 1, "scabby-the-spoon": 3, "sandbox-combined-tickorder-cancel": 1, "sandbox-typography-measure": 1, "sandbox-research-methodology": 1, "sandbox-combined-opticon-test-connectivity": 1, "shadow": 4, "sandbox-combined-pathfinding-stack": 1, "sandbox-combined-opticon-prologue-latch": 1, "sandbox-collision": 2, "sandbox-combined-hold-dismiss": 1, "sandbox-power-scaling": 2, "sandbox-resolver-starves-tutorial": 2, "sandbox-distance": 1, "sandbox-combined-save-system": 2, "sandbox-dbz-merged": 1, "sandbox-combined-accessibility-render": 2, "chronicles": 1, "sandbox-seam-loop-movement": 1, "sandbox-pathfinding-diagonal": 1, "sandbox-combined-seed-drawstream": 1, "sandbox-procgen-ca": 1, "dbh": 6, "sandbox-brain-loop2-frameacc-loopseam": 1, "sandbox-phantom-voice-eats-budget": 1, "sandbox-procgen-lsystem": 1, "animation": 1, "sandbox-combined-rpg-progression": 6, "sandbox-combined-lfsr-peak-meter": 1, "sandbox-weather-vfx": 1, "sandbox-geometry-pip": 2, "sandbox-combined-mobile-visibility": 1, "mirage": 4, "collective-reference": 1, "sandbox-combined-narrative-flags": 2, "sandbox-ratelimit": 1, "sandbox-combined-quest-offer-batch": 1, "sandbox-validation-ladder-vs-key-collision": 1, "sandbox-combined-save-lifecycle": 1, "sandbox-keylock": 1, "sandbox-anim": 6, "sandbox-graph-viz": 4, "warden-fables": 1, "sandbox-bloom": 2, "sandbox-scatter": 2, "sandbox-genesis-fm": 3, "dog": 94, "sandbox-crypto-hmac": 1, "the-game-prologue": 27, "sandbox-combined-integration": 4, "sandbox-combined-action-resolver": 1, "sandbox-physics-integration": 1, "the-game-wrong-sky": 19, "sandbox-combined-sparse-map": 1, "the-game-the-answering-deep": 13, "sandbox-combined-wfc-keylock": 6, "sandbox-procgen-wfc": 2, "draft": 15, "sandbox-combined-skilltree-formula": 6, "sandbox-combined-replan-gameloop": 1, "sandbox-shadowbias": 1, "sandbox-combined-loop-combat": 2, "sandbox-dbz-team-combat": 5, "sandbox-combined-movement-stack": 2, "brain-builder": 11, "codex-visual-snapshots": 1, "sandbox-pathfinding-astar-heuristic": 1, "sandbox-savemigrate": 3, "sandbox-combined-brain-viz-growth": 9, "sandbox-leveldesign-softlock": 1, "sandbox-rng-determinism-not-sufficient-for-replay": 1, "sandbox-csv": 1, "sandbox-localization-expansion": 1, "sandbox-maze": 2, "sandbox-combined-diagonal-distance": 3, "sandbox-dbz-combat": 5, "sandbox-undo-redo": 5, "sandbox-combined-game-loop": 4, "sandbox-combined-graph-editor": 2, "sandbox-expr": 2, "sandbox-shuffle": 1, "sandbox-edge-draft-opticon-scrub": 1, "sandbox-seed-vs-replay-verification": 1, "sandbox-shaders-gamma": 1, "collective": 13, "sandbox-combined-polling-click": 1, "ideas": 3, "lockstep": 10, "memory": 8, "sandbox-path-smoothing-validation": 1}</script>
-<script>
-(function(){
-"use strict";
-const CORE=JSON.parse(document.getElementById('core-data').textContent);
-const LESSONS=JSON.parse(document.getElementById('lesson-data').textContent);
-const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/* ── model ───────────────────────────────────────────────────────────── */
-const N=CORE.nodes, E=CORE.edges, SEAMS=CORE.seams;
-const byId=new Map(N.map(n=>[n.id,n]));
-const adj=new Map(N.map(n=>[n.id,[]]));
-for (const e of E){
-  if (!adj.has(e.a)||!adj.has(e.b)) continue;
-  adj.get(e.a).push({o:e.b,w:e.w,s:e.s});
-  adj.get(e.b).push({o:e.a,w:e.w,s:e.s});
-}
-for (const n of N){ n.deg=adj.get(n.id).length; n.alone=n.deg===0; }
-const totalLessons=N.reduce((a,b)=>a+b.n,0);
-const multiEdges=E.filter(e=>e.w>=2).length;
-const aloneCount=N.filter(n=>n.alone).length;
-
-/* deterministic seeded placement — the same corpus always finds the same
-   shape, so the piece is reproducible and screenshots are comparable */
-function hash(str){ let h=2166136261; for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);} return (h>>>0)/4294967296; }
-const R0=260;
-for (const n of N){
-  const a=hash(n.id)*Math.PI*2, r=R0*(0.35+0.75*hash(n.id+'r'));
-  n.x=Math.cos(a)*r; n.y=Math.sin(a)*r; n.vx=0; n.vy=0;
-  n.rad=3.4+Math.sqrt(n.n)*1.75;
-  n.pinned=false;
-}
-
-/* ── force layout (own solver; 124 nodes so plain O(n²) is ample) ────── */
-const REP=1350, SPRING=0.016, DAMP=0.86, CENTER=0.0016;
-function step(dt){
-  for (let i=0;i<LIVE.length;i++){
-    const a=LIVE[i];
-    for (let j=i+1;j<LIVE.length;j++){
-      const b=LIVE[j];
-      let dx=b.x-a.x, dy=b.y-a.y;
-      let d2=dx*dx+dy*dy;
-      if (d2<0.01){ dx=(hash(a.id+j)-0.5)*0.1; dy=(hash(b.id+i)-0.5)*0.1; d2=dx*dx+dy*dy+0.01; }
-      const d=Math.sqrt(d2);
-      const rr=(a.rad+b.rad);
-      const f=REP*(1+ (d<rr*2.6?2.2:0)) / d2;
-      const fx=dx/d*f, fy=dy/d*f;
-      a.vx-=fx; a.vy-=fy; b.vx+=fx; b.vy+=fy;
-    }
-  }
-  for (const e of E){
-    const a=byId.get(e.a), b=byId.get(e.b);
-    if (!a||!b) continue;
-    const dx=b.x-a.x, dy=b.y-a.y;
-    const d=Math.hypot(dx,dy)||0.001;
-    /* heavier (better corroborated) seams pull tighter — weight is
-       legible as proximity, not only as stroke width */
-    const rest=118-Math.min(58,e.w*11);
-    const f=(d-rest)*SPRING*(0.55+0.45*Math.min(3,e.w));
-    const fx=dx/d*f, fy=dy/d*f;
-    a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
-  }
-  for (const n of LIVE){
-    n.vx-=n.x*CENTER; n.vy-=n.y*CENTER;
-    if (n.pinned){ n.vx=0; n.vy=0; continue; }
-    n.vx*=DAMP; n.vy*=DAMP;
-    const sp=Math.hypot(n.vx,n.vy);
-    if (sp>14){ n.vx=n.vx/sp*14; n.vy=n.vy/sp*14; }
-    n.x+=n.vx*dt; n.y+=n.vy*dt;
-  }
-}
-const LIVE=N.filter(n=>!n.alone), LONE=N.filter(n=>n.alone);
-/* The 28 never-co-verified projects are not part of the structure, so they
-   are not simulated inside it: letting them scatter freely blew out the
-   viewport fit and shrank the actual corpus to illegibility. They take a
-   deliberate outer band instead — outside the connected body, which is
-   exactly what they are. */
-function bandLone(){
-  /* centre the band on the connected corpus's own centroid, not the world
-     origin — the cluster drifts off-origin as it settles, and a band drawn
-     around (0,0) sat visibly off to one side of the thing it encircles */
-  let cx=0,cy=0;
-  for (const n of LIVE){ cx+=n.x; cy+=n.y; }
-  cx/=Math.max(1,LIVE.length); cy/=Math.max(1,LIVE.length);
-  let rad=0;
-  for (const n of LIVE) rad=Math.max(rad,Math.hypot(n.x-cx,n.y-cy));
-  rad=Math.max(160,rad)+86;
-  LONE.forEach((n,i)=>{
-    const a=(i/LONE.length)*Math.PI*2 - Math.PI/2;
-    const jitter=1+(hash(n.id+'b')-0.5)*0.05;
-    n.x=cx+Math.cos(a)*rad*jitter; n.y=cy+Math.sin(a)*rad*jitter*0.78;
-    n.vx=n.vy=0;
-  });
-}
-let settle=REDUCED?420:300;
-for (let i=0;i<(REDUCED?420:150);i++) step(1);
-bandLone();
-
-/* ── view transform ──────────────────────────────────────────────────── */
-const cv=document.getElementById('c'), ctx=cv.getContext('2d');
-let W=0,H=0,DPR=1;
-let view={x:0,y:0,k:1};
-let panTarget=null;   // {x,y} view offset to ease toward
-function panelWidth(){
-  const p=document.getElementById('panel');
-  return p.classList.contains('on') && innerWidth>720 ? Math.min(430,innerWidth*0.92) : 0;
-}
-/* keep a selected node inside the area the panel does NOT cover — the panel
-   occupies the right third, so a node selected there was unreachable for the
-   shift-click trace and half its neighbourhood was hidden behind the panel */
-function centerVisible(n){
-  const pw=panelWidth();
-  panTarget={ x:(W-pw)/2 - n.x*view.k, y:H/2 - n.y*view.k };
-}
-function resize(){
-  DPR=Math.min(2,devicePixelRatio||1);
-  W=innerWidth; H=innerHeight;
-  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-}
-addEventListener('resize',resize); resize();
-function fit(){
-  let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
-  for (const n of N){ if (n.alone&&!showAlone) continue;
-    minx=Math.min(minx,n.x);maxx=Math.max(maxx,n.x);miny=Math.min(miny,n.y);maxy=Math.max(maxy,n.y); }
-  if (minx>maxx) return;
-  const pad=90;
-  const k=Math.min((W-pad*2)/Math.max(1,maxx-minx),(H-pad*2)/Math.max(1,maxy-miny));
-  view.k=Math.max(0.25,Math.min(2.4,k));
-  view.x=W/2-(minx+maxx)/2*view.k;
-  view.y=H/2-(miny+maxy)/2*view.k;
-}
-const toScreen=n=>[n.x*view.k+view.x, n.y*view.k+view.y];
-const toWorld=(sx,sy)=>[(sx-view.x)/view.k,(sy-view.y)/view.k];
-
-/* ── palette read from CSS so canvas follows the theme ───────────────── */
-let P={};
-function readPalette(){
-  const cs=getComputedStyle(document.documentElement);
-  for (const k of ['bg','bg2','line','ink','dim','faint','multi','single','alone','hot'])
-    P[k]=cs.getPropertyValue('--'+k).trim();
-}
-readPalette();
-/* The canvas caches its colours, so it must be told whenever the tokens
-   change — by the OS preference OR by `data-theme` being stamped on the
-   root element, which is how an embedding viewer's own theme toggle works.
-   Without the observer the chrome flipped to dark while the canvas kept
-   painting the light palette: light text on a light ground, unreadable. */
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readPalette);
-matchMedia('(prefers-color-scheme: light)').addEventListener('change',readPalette);
-new MutationObserver(readPalette).observe(document.documentElement,
-  {attributes:true, attributeFilter:['data-theme','style','class']});
-
-function rgba(hex,a){
-  const h=hex.replace('#','');
-  const v=h.length===3?h.split('').map(c=>c+c).join(''):h;
-  const n=parseInt(v,16);
-  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
-}
-
-/* ── state ───────────────────────────────────────────────────────────── */
-let hover=null, selected=null, traceEnd=null, path=null;
-let showSeams=false, showAlone=true;
-
-/* ── path trace: shortest chain of co-verification between two systems ── */
-function findPath(aId,bId){
-  if (aId===bId) return null;
-  const prev=new Map([[aId,null]]);
-  const q=[aId];
-  while(q.length){
-    const cur=q.shift();
-    if (cur===bId) break;
-    for (const {o} of adj.get(cur)||[]){
-      if (!prev.has(o)){ prev.set(o,cur); q.push(o); }
-    }
-  }
-  if (!prev.has(bId)) return null;
-  const out=[]; let c=bId;
-  while(c!==null){ out.unshift(c); c=prev.get(c); }
-  return out;
-}
-function edgeBetween(a,b){ return E.find(e=>(e.a===a&&e.b===b)||(e.a===b&&e.b===a)); }
-
-const traceEl=document.getElementById('trace');
-function renderTrace(){
-  if (!path){ traceEl.classList.remove('on'); return; }
-  if (path.length===0){
-    traceEl.innerHTML=`<b>No path.</b> These two have never been connected by any chain of co-verification — the corpus cannot get from one to the other.`;
-    traceEl.classList.add('on'); return;
-  }
-  const hops=path.length-1;
-  const chain=path.map((id,i)=>{
-    const nm=`<b>${id}</b>`;
-    if (i===path.length-1) return nm;
-    const e=edgeBetween(id,path[i+1]);
-    return nm+`<span class="arrow">─${e?e.w:1}─▸</span>`;
-  }).join('');
-  traceEl.innerHTML=`<b>${path[0]}</b> reaches <b>${path[path.length-1]}</b> in `
-    +`<b>${hops}</b> verified seam${hops===1?'':'s'}.`
-    +`<div class="chain">${chain}</div>`;
-  traceEl.classList.add('on');
-}
-
-/* ── panel ───────────────────────────────────────────────────────────── */
-const panel=document.getElementById('panel');
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function fmt(d){ const [y,m,dd]=d.split('-').map(Number);
-  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]+' '+dd; }
-function openPanel(id){
-  const n=byId.get(id); if (!n) return;
-  selected=id;
-  document.getElementById('p-name').textContent=id;
-  document.getElementById('p-lessons').textContent=n.n;
-  document.getElementById('p-seams').textContent=n.deg;
-  document.getElementById('p-dates').textContent = n.s===n.e?fmt(n.s):fmt(n.s)+' – '+fmt(n.e);
-
-  const nb=adj.get(id).slice().sort((a,b)=>b.w-a.w);
-  const wrap=document.getElementById('p-nbrwrap');
-  const box=document.getElementById('p-nbrs');
-  if (nb.length){
-    wrap.style.display='';
-    box.innerHTML=nb.map(x=>`<button class="nbr${x.w>=2?' m':''}" data-go="${esc(x.o)}">${esc(x.o)}<i>${x.w}</i></button>`).join('');
-    box.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{
-      openPanel(b.dataset.go); focusNode(b.dataset.go);
-    }));
-  } else {
-    wrap.style.display='';
-    box.innerHTML='';
-    wrap.querySelector('.sect').nextElementSibling.innerHTML =
-      `<div class="empty">Never co-verified. This project's lessons have not been
-       stress-tested against any other system — they hold on their own evidence alone.</div>`;
-  }
-
-  /* Two builds share this file. The full build embeds each lesson's title,
-     tags and rule of thumb; the public build embeds only a per-project
-     COUNT, because the corpus those lessons come from is private. Detect
-     which payload is present rather than maintaining two templates. */
-  const ls=LESSONS[id];
-  const lbox=document.getElementById('p-lessonlist');
-  if (Array.isArray(ls) && ls.length){
-    lbox.innerHTML = ls.map(l=>`<div class="lesson"><div class="lt">${esc(l.t)}</div>`
-        +(l.g.length?`<div class="lg">${l.g.map(t=>'['+esc(t)+']').join(' ')}</div>`:'')
-        +(l.r?`<div class="lr">${esc(l.r)}</div>`:'')+`</div>`).join('');
-  } else if (typeof ls==='number' && ls>0){
-    lbox.innerHTML=`<div class="empty"><b>${ls}</b> lesson${ls===1?'':'s'} recorded.
-      Their text is held in a private repository and is not published here — this
-      drawing shows the structure they form, not their contents.</div>`;
-  } else {
-    lbox.innerHTML=`<div class="empty">No lessons recorded.</div>`;
-  }
-  document.querySelector('.panel .body').scrollTop=0;
-  panel.classList.add('on');
-  document.body.classList.add('panelopen');
-  requestAnimationFrame(()=>centerVisible(n));
-}
-function closePanel(){ panel.classList.remove('on'); document.body.classList.remove('panelopen'); selected=null; traceEnd=null; path=null; renderTrace(); }
-document.getElementById('p-close').addEventListener('click',closePanel);
-addEventListener('keydown',e=>{ if (e.key==='Escape') closePanel(); });
-
-function focusNode(id){
-  const n=byId.get(id); if (!n) return;
-  centerVisible(n);
-}
-
-/* ── pointer ─────────────────────────────────────────────────────────── */
-let drag=null, dragNode=null, moved=false;
-function pick(sx,sy){
-  const [wx,wy]=toWorld(sx,sy);
-  let best=null,bd=1e9;
-  for (const n of N){
-    if (n.alone&&!showAlone) continue;
-    const d=Math.hypot(n.x-wx,n.y-wy);
-    const hitR=Math.max(n.rad+6, 11/view.k);
-    if (d<hitR && d<bd){ bd=d; best=n; }
-  }
-  return best;
-}
-cv.addEventListener('pointermove',e=>{
-  if (drag){
-    moved=true;
-    if (dragNode){
-      const [wx,wy]=toWorld(e.clientX,e.clientY);
-      dragNode.x=wx; dragNode.y=wy; dragNode.vx=0; dragNode.vy=0;
-    } else {
-      panTarget=null;
-      view.x+=e.clientX-drag.x; view.y+=e.clientY-drag.y;
-      drag.x=e.clientX; drag.y=e.clientY;
-    }
-    return;
-  }
-  hover=pick(e.clientX,e.clientY);
-  cv.classList.toggle('overnode',!!hover);
-});
-cv.addEventListener('pointerdown',e=>{
-  cv.setPointerCapture(e.pointerId);
-  moved=false;
-  const n=pick(e.clientX,e.clientY);
-  drag={x:e.clientX,y:e.clientY};
-  if (n){ dragNode=n; n.pinned=true; }
-  cv.classList.add('grabbing');
-});
-cv.addEventListener('pointerup',e=>{
-  cv.classList.remove('grabbing');
-  const n=pick(e.clientX,e.clientY);
-  if (dragNode){ dragNode.pinned=false; }
-  if (!moved && n){
-    if (e.shiftKey && selected && selected!==n.id){
-      traceEnd=n.id;
-      const p=findPath(selected,traceEnd);
-      path = p ? p : [];
-      renderTrace();
-    } else {
-      path=null; traceEnd=null; renderTrace();
-      openPanel(n.id);
-    }
-  } else if (!moved && !n){
-    closePanel();
-  }
-  drag=null; dragNode=null;
-});
-cv.addEventListener('wheel',e=>{
-  e.preventDefault();
-  panTarget=null;
-  const f=Math.exp(-e.deltaY*0.0012);
-  const nk=Math.max(0.18,Math.min(4.5,view.k*f));
-  const [wx,wy]=toWorld(e.clientX,e.clientY);
-  view.k=nk;
-  view.x=e.clientX-wx*view.k; view.y=e.clientY-wy*view.k;
-},{passive:false});
-
-/* ── controls ────────────────────────────────────────────────────────── */
-const bSeams=document.getElementById('t-seams'), bAlone=document.getElementById('t-alone');
-bSeams.addEventListener('click',()=>{ showSeams=!showSeams; bSeams.setAttribute('aria-pressed',showSeams); });
-bAlone.addEventListener('click',()=>{ showAlone=!showAlone; bAlone.setAttribute('aria-pressed',showAlone); });
-document.getElementById('t-reset').addEventListener('click',()=>{ panTarget=null; closePanel(); fit(); });
-document.getElementById('t-theme').addEventListener('click',()=>{
-  const cur=document.documentElement.getAttribute('data-theme');
-  const sysDark=matchMedia('(prefers-color-scheme: dark)').matches;
-  const next = cur ? (cur==='dark'?'light':'dark') : (sysDark?'light':'dark');
-  document.documentElement.setAttribute('data-theme',next);
-  readPalette();
-});
-
-/* ── render ──────────────────────────────────────────────────────────── */
-function colorFor(e){ return e.w>=2 ? P.multi : P.single; }
-function draw(){
-  ctx.fillStyle=P.bg; ctx.fillRect(0,0,W,H);
-
-  const inPath=new Set(path||[]);
-  const pathEdges=new Set();
-  if (path) for (let i=0;i<path.length-1;i++) pathEdges.add(path[i]+'|'+path[i+1]), pathEdges.add(path[i+1]+'|'+path[i]);
-  const hoverId=hover?hover.id:(selected||null);
-  const nbrSet=hoverId?new Set(adj.get(hoverId).map(x=>x.o)):null;
-
-  /* untested seams first, quietly — absence should not shout */
-  if (showSeams){
-    ctx.save(); ctx.setLineDash([2,5]); ctx.lineWidth=1;
-    ctx.strokeStyle=rgba(P.faint,0.5);
-    for (const s of SEAMS){
-      const a=byId.get(s.a), b=byId.get(s.b); if(!a||!b) continue;
-      const [ax,ay]=toScreen(a), [bx,by]=toScreen(b);
-      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  /* edges */
-  for (const e of E){
-    const a=byId.get(e.a), b=byId.get(e.b); if(!a||!b) continue;
-    const [ax,ay]=toScreen(a), [bx,by]=toScreen(b);
-    const onPath=pathEdges.has(e.a+'|'+e.b);
-    let al = e.w>=2?0.82:0.46;
-    if (hoverId){
-      const touches = e.a===hoverId||e.b===hoverId;
-      al = touches ? 1 : al*0.16;
-    }
-    if (path) al = onPath?1:al*0.28;
-    ctx.strokeStyle = onPath ? rgba(P.hot,1) : rgba(colorFor(e),al);
-    ctx.lineWidth = (onPath?2.8:(0.9+Math.min(3.4,e.w*0.62)))*Math.min(1.7,Math.max(.55,view.k));
-    /* gentle arc so parallel runs stay individually legible */
-    const mx=(ax+bx)/2, my=(ay+by)/2;
-    const dx=bx-ax, dy=by-ay, L=Math.hypot(dx,dy)||1;
-    const bow=Math.min(26,L*0.11);
-    ctx.beginPath();
-    ctx.moveTo(ax,ay);
-    ctx.quadraticCurveTo(mx-dy/L*bow, my+dx/L*bow, bx,by);
-    ctx.stroke();
-  }
-
-  /* nodes */
-  const labels=[];
-  for (const n of N){
-    if (n.alone&&!showAlone) continue;
-    const [x,y]=toScreen(n);
-    const r=Math.max(2.2,n.rad*Math.min(1.9,Math.max(.5,view.k)));
-    const isHot = hoverId===n.id || inPath.has(n.id);
-    const isNbr = nbrSet && nbrSet.has(n.id);
-    let dim = hoverId ? (isHot||isNbr?1:0.24) : 1;
-    if (path) dim = inPath.has(n.id)?1:0.2;
-
-    if (n.alone){
-      ctx.strokeStyle=rgba(P.alone,0.75*dim); ctx.lineWidth=1;
-      ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.stroke();
-    } else {
-      const col = n.deg>=6 ? P.multi : P.ink;
-      ctx.fillStyle=rgba(P.bg,dim);
-      ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
-      ctx.strokeStyle=rgba(col,(isHot?1:0.82)*dim);
-      ctx.lineWidth=isHot?2:1.2;
-      ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.stroke();
-      if (isHot){ ctx.fillStyle=rgba(col,0.9); ctx.beginPath(); ctx.arc(x,y,r*0.42,0,7); ctx.fill(); }
-    }
-
-    /* label candidates are collected, not drawn — in the dense core the
-       landmarks overlapped into an unreadable stack, so placement is a
-       greedy pass by importance with an overlap test (below) */
-    const showLabel = isHot || inPath.has(n.id)
-      || n.n>=15 || n.deg>=12
-      || (view.k>0.75 && (n.n>=6||n.deg>=6))
-      || (view.k>1.5 && n.deg>0);
-    if (showLabel && dim>0.5){
-      labels.push({n,x,y,r,dim,isHot,
-        w:0, imp:(isHot?1e6:0)+(inPath.has(n.id)?1e5:0)+n.n*3+n.deg});
-    }
-  }
-
-  /* greedy label placement, most important first */
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  labels.sort((a,b)=>b.imp-a.imp);
-  const placed=[];
-  for (const L of labels){
-    ctx.font=`${L.isHot?600:400} 10.5px ui-monospace,SFMono-Regular,Menlo,monospace`;
-    const label=L.n.id.replace(/^sandbox-combined-/,'').replace(/^sandbox-/,'').replace(/^the-game-/,'');
-    const tw=ctx.measureText(label).width;
-    const bx=L.x-tw/2-3, by=L.y+L.r+3, bw=tw+6, bh=13;
-    let clash=false;
-    for (const q of placed){
-      if (bx<q.x+q.w && bx+bw>q.x && by<q.y+q.h && by+bh>q.y){ clash=true; break; }
-    }
-    if (clash && !L.isHot && !inPath.has(L.n.id)) continue;
-    placed.push({x:bx,y:by,w:bw,h:bh});
-    ctx.fillStyle=rgba(P.bg,0.86);
-    ctx.fillRect(bx,by,bw,bh);
-    ctx.fillStyle=rgba(L.isHot?P.hot:P.dim,L.dim);
-    ctx.fillText(label,L.x,L.y+L.r+10);
-  }
-}
-
-/* ── loop ────────────────────────────────────────────────────────────── */
-let first=true;
-function frame(){
-  requestAnimationFrame(frame);
-  if (settle>0){ const k=REDUCED?8:2; for(let i=0;i<k;i++) step(1); settle-=k; if (first&&settle<=0){first=false;} }
-  else if (dragNode){ step(1); }
-  if (settle>0 && settle%25===0) bandLone();
-  if (first && settle>0 && (settle%40===0)) fit();
-  if (panTarget){
-    const e=REDUCED?1:0.18;
-    view.x+=(panTarget.x-view.x)*e; view.y+=(panTarget.y-view.y)*e;
-    if (Math.abs(panTarget.x-view.x)<0.4 && Math.abs(panTarget.y-view.y)<0.4){
-      view.x=panTarget.x; view.y=panTarget.y; panTarget=null;
-    }
-  }
-  draw();
-}
-fit();
-if (REDUCED){ while(settle>0){ step(1); settle--; } fit(); }
-frame();
-
-/* figures */
-document.getElementById('f-nodes').textContent=N.length;
-document.getElementById('f-lessons').textContent=totalLessons;
-document.getElementById('f-multi').textContent=multiEdges;
-document.getElementById('f-single').textContent=E.length-multiEdges;
-document.getElementById('f-alone').textContent=aloneCount;
-})();
-</script>

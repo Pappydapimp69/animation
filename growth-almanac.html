@@ -1,0 +1,787 @@
+<title>Seeds and Stones — a cutscene</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* A cutscene commits to one dark theatre, not the page's light/dark
+     preference — a screening room doesn't relight itself for your OS
+     setting. Deliberate single-world choice, not an omission. */
+  :root{
+    --void:#03040a; --stage-bg:#080b13; --stage-deep:#03040a;
+    --ink:#eef1f6; --ink-dim:#8a93a3; --ink-faint:#525b6b;
+    --seed:#3987e5; --lesson:#d95926; --signal:#ffd9a8;
+    --serif: "Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,"Hoefler Text",Georgia,serif;
+    --mono: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:var(--void); overflow:hidden; color:var(--ink); font-family:var(--mono); -webkit-font-smoothing:antialiased}
+
+  .frame{position:fixed; inset:0; background:var(--void)}
+  .stage{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:100vw; height:calc(100vw/2.39);
+    max-height:100vh; max-width:calc(100vh*2.39);
+    background:var(--stage-bg); overflow:hidden;
+  }
+  canvas#net{position:absolute; inset:0; display:block; width:100%; height:100%}
+  .safe{position:absolute; inset:0; pointer-events:none}
+
+  .titlecard{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:12px; text-align:center;
+    background:radial-gradient(ellipse at center, rgba(3,4,10,.35), rgba(3,4,10,.86));
+    opacity:0; transition:opacity 1.1s ease;
+  }
+  .titlecard.on{opacity:1}
+  .titlecard .t{font-family:var(--serif); font-style:italic; font-size:clamp(26px,5.4vw,52px); letter-spacing:.01em}
+  .titlecard .s{font-family:var(--mono); font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--ink-dim)}
+
+  /* narration sits inside the ~90% safe-title band, like a subtitle line */
+  .line{
+    position:absolute; left:6%; right:6%; bottom:9%; text-align:center;
+    font-family:var(--serif); font-size:clamp(15px,2.5vw,22px); line-height:1.4; color:var(--ink);
+    text-shadow:0 2px 14px rgba(0,0,0,.85), 0 0 3px rgba(0,0,0,.9);
+    opacity:0; transform:translateY(8px); transition:opacity .5s ease, transform .5s ease;
+  }
+  .line.on{opacity:1; transform:translateY(0)}
+  .line.big{font-size:clamp(17px,3vw,25px); color:var(--signal)}
+
+  .closer{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:0 8%; pointer-events:none;
+    font-family:var(--serif); font-size:clamp(18px,3.6vw,30px); line-height:1.4; color:var(--ink);
+    text-shadow:0 2px 16px rgba(0,0,0,.85);
+    opacity:0; transition:opacity .6s ease;
+  }
+  .closer.on{opacity:1}
+
+  .rail{
+    position:absolute; left:0; right:0; bottom:0; padding:10px 14px;
+    display:flex; align-items:center; gap:10px; pointer-events:none;
+    background:linear-gradient(0deg, rgba(3,4,10,.65), transparent);
+  }
+  .rail > *{pointer-events:auto}
+  button{
+    -webkit-appearance:none; appearance:none; background:transparent; border:1px solid rgba(238,241,246,.22);
+    color:var(--ink-dim); width:26px; height:26px; border-radius:50%; display:flex;
+    align-items:center; justify-content:center; cursor:pointer; padding:0; flex:none;
+  }
+  button:hover{border-color:var(--ink-dim); color:var(--ink)}
+  button:focus-visible{outline:2px solid var(--seed); outline-offset:2px}
+  button svg{width:10px; height:10px}
+  input[type=range]{flex:1; accent-color:var(--seed); cursor:pointer; height:16px}
+  input[type=range]:focus-visible{outline:2px solid var(--seed); outline-offset:2px}
+  .readout{font-size:10px; color:var(--ink-faint); min-width:88px; text-align:right}
+
+  @media (prefers-reduced-motion:reduce){ .titlecard,.line,.closer{transition-duration:.001ms} }
+</style>
+
+<div class="frame">
+  <div class="stage">
+    <canvas id="net" role="img" aria-label="A cutscene: two clusters of glowing light grow across a dark stage over forty-six days — one for every seed of an idea kept, one for every stone of a lesson learned — climaxing when one night nearly triples the smaller cluster, and closing on the true final tallies."></canvas>
+    <div class="safe">
+      <div class="titlecard" id="title">
+        <div class="t">Seeds and Stones</div>
+        <div class="s">a true ledger of forty-six days</div>
+      </div>
+      <div class="line" id="line"></div>
+      <div class="closer" id="closer"></div>
+    </div>
+    <div class="rail">
+      <button id="play" type="button" aria-label="Pause">
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Move through the days">
+      <span class="readout" id="readout">Day 0 &middot; Jun 14</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Vendored from Pappydapimp69/Brain, shared/brain-intro.js — the shared
+   audio-unlock gesture gate every Brain-derived web app mounts. Copy the
+   source file's contents here verbatim when it updates; keep this page
+   self-contained rather than depending on a cross-repo asset path. */
+(function () {
+  "use strict";
+  if (customElements.get("brain-intro")) return;
+
+  const INTRO_REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  class BrainIntroEl extends HTMLElement {
+    constructor() {
+      super();
+      this._fired = false;
+      this._onUnlock = null;
+      this._label = "you're tapping this — i already know";
+      const root = this.attachShadow({ mode: "open" });
+      root.innerHTML = `
+        <style>
+          :host{ all:initial; position:fixed; inset:0; z-index:2147483647; }
+          .btn{
+            all:unset; box-sizing:border-box; position:absolute; inset:0;
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            gap:22px; cursor:pointer; background:#05070c; color:#eef1f6;
+            font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+            opacity:1; transition:opacity .35s ease;
+          }
+          .btn:focus-visible{ outline:2px solid #3987e5; outline-offset:-4px; }
+          canvas{ width:120px; height:120px; }
+          .label{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#7c8492; text-align:center; padding:0 24px; }
+          :host([data-out]) .btn{ opacity:0; pointer-events:none; }
+          @media (prefers-reduced-motion:reduce){ .btn{ transition-duration:.001ms; } }
+        </style>
+        <button class="btn" type="button" part="button">
+          <canvas width="120" height="120" aria-hidden="true"></canvas>
+          <span class="label"></span>
+        </button>
+      `;
+      this._button = root.querySelector(".btn");
+      this._canvas = root.querySelector("canvas");
+      this._labelEl = root.querySelector(".label");
+    }
+
+    connectedCallback() {
+      this._labelEl.textContent = this._label;
+      this._button.setAttribute("aria-label", this._label);
+      this._raf = null;
+      this._t0 = performance.now();
+      if (!INTRO_REDUCED) this._animate();
+      else this._paint(0);
+
+      const fire = (e) => this._fire(e);
+      this._button.addEventListener("pointerdown", fire, { once: true });
+      this._button.addEventListener("click", fire, { once: true });
+
+      requestAnimationFrame(() => this._button.focus({ preventScroll: true }));
+    }
+
+    disconnectedCallback() {
+      if (this._raf) cancelAnimationFrame(this._raf);
+    }
+
+    _animate() {
+      const step = () => {
+        this._paint((performance.now() - this._t0) / 1000);
+        this._raf = requestAnimationFrame(step);
+      };
+      this._raf = requestAnimationFrame(step);
+    }
+
+    _paint(t) {
+      const ctx = this._canvas.getContext("2d");
+      const W = 120, H = 120, cx = 60, cy = 60;
+      ctx.clearRect(0, 0, W, H);
+      const breathe = INTRO_REDUCED ? 1 : 0.9 + 0.1 * Math.sin(t * 2.1);
+      [[-1, "#3987e5"], [1, "#d95926"]].forEach(([side, color]) => {
+        const lx = cx + side * 13, ly = cy;
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 14 * breathe;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.ellipse(lx, ly, 15 * breathe, 18 * breathe, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      if (!INTRO_REDUCED) {
+        const p = (t * 0.6) % 1;
+        ctx.save();
+        ctx.strokeStyle = "#eef1f6";
+        ctx.globalAlpha = (1 - p) * 0.35;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 26 + p * 30, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    _fire(e) {
+      if (this._fired) return;
+      this._fired = true;
+
+      let audioCtx = null;
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+          audioCtx = new AC();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+          this._playSting(audioCtx);
+        }
+      } catch (err) { /* Web Audio unsupported or blocked — sting/unlock still proceed with null */ }
+
+      if (this._raf) cancelAnimationFrame(this._raf);
+      const STING_MS = INTRO_REDUCED ? 0 : 500;
+      if (!INTRO_REDUCED) this._stingAnimate(audioCtx);
+
+      setTimeout(() => {
+        try {
+          if (this._onUnlock) this._onUnlock(audioCtx);
+        } finally {
+          this.setAttribute("data-out", "");
+          const done = () => this.remove();
+          if (INTRO_REDUCED) done();
+          else this._button.addEventListener("transitionend", done, { once: true });
+        }
+      }, STING_MS);
+    }
+
+    _playSting(ctx) {
+      this._stingClock0 = ctx.currentTime;
+      const now = this._stingClock0;
+      const notes = [
+        { f: 392.0, t: 0.0, d: 0.25, g: 0.16 },
+        { f: 587.33, t: 0.06, d: 0.25, g: 0.16 },
+      ];
+      notes.forEach((n) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = n.f;
+        gain.gain.setValueAtTime(0, now + n.t);
+        gain.gain.linearRampToValueAtTime(n.g, now + n.t + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + n.t + n.d);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + n.t);
+        osc.stop(now + n.t + n.d + 0.05);
+      });
+    }
+
+    _stingAnimate(audioCtx) {
+      const perf0 = performance.now();
+      const step = () => {
+        const t = audioCtx ? (audioCtx.currentTime - this._stingClock0) : (performance.now() - perf0) / 1000;
+        this._paintSting(Math.min(t, 0.45));
+        if (t < 0.45) this._raf = requestAnimationFrame(step);
+      };
+      this._raf = requestAnimationFrame(step);
+    }
+
+    _paintSting(t) {
+      const ctx = this._canvas.getContext("2d");
+      const W = 120, H = 120, cx = 60, cy = 60;
+      ctx.clearRect(0, 0, W, H);
+      const conv = Math.min(1, t / 0.45);
+      const sep = 13 * (1 - conv * 0.7);
+      const scale = 1 + conv * 0.25;
+      [[-1, "#3987e5"], [1, "#d95926"]].forEach(([side, color]) => {
+        const lx = cx + side * sep, ly = cy;
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 14 * scale;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.ellipse(lx, ly, 15 * scale, 18 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    set onUnlock(fn) { this._onUnlock = fn; }
+    set label(s) { this._label = s; }
+  }
+
+  customElements.define("brain-intro", BrainIntroEl);
+
+  window.BrainIntro = {
+    mount(opts) {
+      opts = opts || {};
+      const el = document.createElement("brain-intro");
+      if (opts.label) el.label = opts.label;
+      el.onUnlock = opts.onUnlock || null;
+      document.body.appendChild(el);
+      return el;
+    },
+  };
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- real data: daily cumulative counts, sampled from full git history ---------- */
+const SEED = [
+  ["2026-06-27",29],["2026-06-30",39],["2026-07-01",65],["2026-07-02",65],
+  ["2026-07-04",67],["2026-07-07",69],["2026-07-08",70],["2026-07-09",82],
+  ["2026-07-10",97],["2026-07-11",298],["2026-07-12",376],["2026-07-13",397],
+  ["2026-07-15",413],["2026-07-16",437],["2026-07-17",439],["2026-07-18",451],
+  ["2026-07-20",482],["2026-07-24",509],["2026-07-26",524],["2026-07-30",527],
+];
+const LESSON = [
+  ["2026-06-14",7],["2026-06-15",17],["2026-06-30",17],["2026-07-01",17],
+  ["2026-07-02",44],["2026-07-03",44],["2026-07-04",48],["2026-07-05",72],
+  ["2026-07-06",72],["2026-07-07",72],["2026-07-08",72],["2026-07-09",136],
+  ["2026-07-10",145],["2026-07-11",200],["2026-07-12",221],["2026-07-13",305],
+  ["2026-07-14",305],["2026-07-15",356],["2026-07-16",377],["2026-07-17",377],
+  ["2026-07-18",417],["2026-07-20",454],["2026-07-24",478],["2026-07-26",505],
+  ["2026-07-30",522],
+];
+const MILESTONES = [
+  {d:"2026-06-30", line:"The first thing that worked.", big:false},
+  {d:"2026-07-01", line:"Tested where nothing could break.", big:false},
+  {d:"2026-07-04", line:"It stopped, and looked over the wall.", big:false},
+  {d:"2026-07-09", line:"It studied how stories are told. Twice.", big:false},
+  {d:"2026-07-11", line:"Five crafts in one night. Ninety-seven seeds — two hundred ninety-eight by morning.", big:true},
+  {d:"2026-07-16", line:"It learned to persuade. And got insufferable.", big:false},
+  {d:"2026-07-18", line:"Calm rooms. Unlocked doors. Two chairs, one table.", big:false},
+  {d:"2026-07-20", line:"Eleven crafts before sunrise.", big:false},
+  {d:"2026-07-26", line:"It watched real hands hesitate — then it answered.", big:false},
+];
+const CLOSING = [
+  {line:"527 seeds kept.", big:false},
+  {line:"522 stones earned.", big:false},
+  {line:"Five apart.", big:true},
+  {line:"92 tried in private. 26 shown to anyone.", big:false},
+  {line:"5 questions, left open on purpose.", big:false},
+  {line:"Not a machine. Not a miracle.", big:false},
+];
+
+const DAY_MS = 86400000;
+function parseD(s){ const [y,m,d]=s.split('-').map(Number); return Date.UTC(y,m-1,d); }
+const START = parseD("2026-06-14");
+const END = parseD("2026-07-30");
+function densify(series){
+  const out = [];
+  for (let t = START; t <= END; t += DAY_MS){
+    let v = 0;
+    for (const [d, c] of series) if (parseD(d) <= t) v = c;
+    out.push(v);
+  }
+  return out;
+}
+const seedDaily = densify(SEED);
+const lessonDaily = densify(LESSON);
+const totalDays = seedDaily.length - 1;
+
+/* ---------- two clusters of nodes, one per real entry, golden-angle spiral fill ---------- */
+const GOLDEN = Math.PI*(3-Math.sqrt(5));
+
+function buildNodes(daily){
+  const nodes = [];
+  let prev = 0;
+  for (let day=0; day<daily.length; day++){
+    const delta = daily[day]-prev;
+    for (let j=0;j<delta;j++) nodes.push({day, k:nodes.length});
+    prev = daily[day];
+  }
+  return nodes;
+}
+function boundaryAt(angle, off){
+  return 0.78 + 0.10*Math.sin(3*angle+off) + 0.09*Math.sin(5*angle+1.7*off) + 0.06*Math.sin(7*angle+2.3*off);
+}
+function placeNodes(nodes, off){
+  const total = nodes.length;
+  for (const n of nodes){
+    const angle = n.k*GOLDEN;
+    const rNorm = Math.sqrt((n.k+0.5)/total);
+    const r = rNorm*boundaryAt(angle, off)*0.95;
+    n.ux = Math.cos(angle)*r;
+    n.uy = Math.sin(angle)*r*0.88;
+  }
+}
+function buildParents(nodes){
+  const parent = new Array(nodes.length);
+  parent[0] = -1;
+  for (let i=1;i<nodes.length;i++){
+    let best=-1, bestD=Infinity;
+    const a = nodes[i];
+    for (let j=0;j<i;j++){
+      const b = nodes[j];
+      const dx=a.ux-b.ux, dy=a.uy-b.uy;
+      const d=dx*dx+dy*dy;
+      if (d<bestD){ bestD=d; best=j; }
+    }
+    parent[i]=best;
+  }
+  return parent;
+}
+
+const seedNodes = buildNodes(seedDaily);
+const lessonNodes = buildNodes(lessonDaily);
+placeNodes(seedNodes, 1.3);
+placeNodes(lessonNodes, 4.1);
+const seedParent = buildParents(seedNodes);
+const lessonParent = buildParents(lessonNodes);
+const TOTAL_NODES = seedNodes.length + lessonNodes.length;
+
+/* ---------- easing: MOTION/camera kernels from Brain's own history ---------- */
+// smootherstep — zero 1st AND 2nd derivative at both ends of [0,1].
+function smootherstep(t){ t = Math.max(0,Math.min(1,t)); return t*t*t*(t*(6*t-15)+10); }
+// A symmetric rise-to-peak-then-fall curve with NO flat middle — the fix
+// for "a literal flat hold reads as mechanical even between smooth eases"
+// (MOTION/camera/one-continuous-eased-curve-beats-punch-hold-release).
+function bellEnvelope(t){
+  t = Math.max(0,Math.min(1,t));
+  return t<=0.5 ? smootherstep(t/0.5) : smootherstep((1-t)/0.5);
+}
+
+/* ---------- canvas ---------- */
+const stageEl = document.querySelector('.stage');
+const cv = document.getElementById('net');
+const ctx = cv.getContext('2d');
+let CW=0, CH=0;
+
+function resize(){
+  const r = stageEl.getBoundingClientRect();
+  const dpr = Math.min(devicePixelRatio||1, 2);
+  CW = r.width; CH = r.height;
+  cv.width = Math.round(CW*dpr); cv.height = Math.round(CH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  draw(dayIndex, punch);
+}
+let resizeTimer = null;
+window.addEventListener('resize', ()=>{ clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 100); });
+
+function geometry(){
+  const cx = CW*0.5, cy = CH*0.5;
+  const lobeR = Math.min(CW*0.24, CH*0.62);
+  return {
+    center: {x:cx, y:cy},
+    seed:   {x: cx-lobeR*0.62, y: cy, r: lobeR, off: 1.3},
+    lesson: {x: cx+lobeR*0.62, y: cy, r: lobeR, off: 4.1},
+  };
+}
+
+// MOTION/camera/clamp-to-live-content-not-a-progress-schedule: compute the
+// actual on-screen extent of every CURRENTLY VISIBLE node from the shared
+// scene center, independent of the dramatic zoom schedule. A schedule alone
+// can clip real content the instant it first appears, before it's caught up
+// to what the schedule "expects".
+function maxVisibleExtent(dayIdx, geo){
+  let maxR = 0;
+  function scan(nodes, g){
+    for (const n of nodes){
+      if (dayIdx - n.day < 0) continue;
+      const x = g.x + n.ux*g.r, y = g.y + n.uy*g.r;
+      const d = Math.hypot(x-geo.center.x, y-geo.center.y);
+      if (d > maxR) maxR = d;
+    }
+  }
+  scan(seedNodes, geo.seed);
+  scan(lessonNodes, geo.lesson);
+  return maxR;
+}
+
+function drawLobeOutline(g, color){
+  ctx.beginPath();
+  for (let i=0;i<=72;i++){
+    const angle = (i/72)*Math.PI*2;
+    const rad = boundaryAt(angle, g.off)*0.97;
+    const x = g.x+Math.cos(angle)*rad*g.r;
+    const y = g.y+Math.sin(angle)*rad*g.r*0.88;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = color; ctx.lineWidth=1; ctx.globalAlpha=0.28; ctx.stroke(); ctx.globalAlpha=1;
+}
+
+function drawCluster(nodes, parent, g, color, dayIdx, punchV, t){
+  for (let i=0;i<nodes.length;i++){
+    const n = nodes[i];
+    const age = dayIdx - n.day;
+    if (age < 0) continue;
+    let opacity = Math.min(1, age*2.2);
+    if (opacity<=0) continue;
+    const isFrontier = age < 1.2;
+    if (isFrontier && !REDUCED) opacity *= 0.82+0.18*Math.sin(t*3+n.k);
+    const x = g.x + n.ux*g.r;
+    const y = g.y + n.uy*g.r;
+
+    const p = parent[i];
+    if (p>=0){
+      const pn = nodes[p];
+      const px = g.x+pn.ux*g.r, py = g.y+pn.uy*g.r;
+      ctx.save();
+      ctx.globalAlpha = opacity*0.5;
+      if (isFrontier){ ctx.shadowColor=color; ctx.shadowBlur=6+punchV*10; }
+      ctx.strokeStyle = color; ctx.lineWidth = isFrontier?1.1:0.6;
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(x,y); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    if (isFrontier){ ctx.shadowColor=color; ctx.shadowBlur = 10+punchV*22; }
+    ctx.fillStyle = color;
+    const rad = isFrontier ? 2.3+punchV*1.6 : 1.4;
+    ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+let burstStart = null;
+function triggerBurst(){ burstStart = performance.now(); }
+
+// punchWindow: {active, localT (0..1 across the current hold), crowdingFraction}
+function draw(dayIdx, punchV, punchWindow){
+  const geo = geometry();
+
+  // --- camera: dramatic pull-back schedule, hard-clamped to what's actually visible ---
+  const progress = smootherstep(dayIdx/totalDays);
+  const dramaticScale = 1.5 - progress*0.5; // 1.5 (close) -> 1.0 (full view)
+  const revealedFraction = TOTAL_NODES>0
+    ? (Math.min(dayIdx,totalDays)>=0 ? (seedDaily[Math.min(Math.floor(dayIdx),totalDays)]+lessonDaily[Math.min(Math.floor(dayIdx),totalDays)])/TOTAL_NODES : 0)
+    : 0;
+  let scale = dramaticScale;
+  if (punchWindow && punchWindow.active){
+    // MOTION/camera/one-continuous-eased-curve: a single bell curve, no flat
+    // plateau. MOTION/camera/taper-a-scripted-overrides-strength-against-
+    // scene-crowding: taper the punch by how full the scene already is.
+    const envelope = bellEnvelope(punchWindow.localT);
+    const taper = 1 - punchWindow.crowdingFraction*0.7;
+    scale = dramaticScale * (1 + envelope*0.32*Math.max(0.25,taper));
+  }
+  const safeHalfExtent = Math.min(CW,CH)*0.5*0.84;
+  const extent = maxVisibleExtent(dayIdx, geo);
+  const safeScale = extent > 4 ? safeHalfExtent/extent : scale;
+  scale = Math.min(scale, safeScale); // hard clamp, no smoothing lag on the clamp itself
+
+  ctx.clearRect(0,0,CW,CH);
+  ctx.fillStyle = '#080b13'; ctx.fillRect(0,0,CW,CH);
+
+  ctx.save();
+  ctx.translate(geo.center.x, geo.center.y);
+  ctx.scale(scale, scale);
+  ctx.translate(-geo.center.x, -geo.center.y);
+
+  const vg = ctx.createRadialGradient(geo.center.x,geo.center.y,Math.min(CW,CH)*0.1,geo.center.x,geo.center.y,Math.max(CW,CH)*0.75);
+  vg.addColorStop(0,'rgba(8,11,19,0)'); vg.addColorStop(1,'rgba(3,4,10,.9)');
+  ctx.fillStyle = vg; ctx.fillRect(geo.center.x-CW,geo.center.y-CH,CW*2,CH*2);
+
+  const t = REDUCED ? 0 : performance.now()/1000;
+  drawLobeOutline(geo.seed, '#3987e5');
+  drawLobeOutline(geo.lesson, '#d95926');
+  drawCluster(seedNodes, seedParent, geo.seed, '#3987e5', dayIdx, punchV, t);
+  drawCluster(lessonNodes, lessonParent, geo.lesson, '#d95926', dayIdx, punchV, t);
+
+  if (burstStart !== null && !REDUCED){
+    const elapsed = (performance.now()-burstStart)/1000;
+    if (elapsed < 0.9){
+      const p = elapsed/0.9;
+      ctx.save();
+      ctx.globalAlpha = 1-p;
+      ctx.strokeStyle = '#ffd9a8'; ctx.lineWidth = 2/scale;
+      ctx.beginPath(); ctx.arc(geo.center.x, geo.center.y, 12+p*76, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    } else burstStart = null;
+  }
+  ctx.restore();
+}
+
+/* ---------- playback ---------- */
+const el = {
+  scrub: document.getElementById('scrub'), play: document.getElementById('play'),
+  readout: document.getElementById('readout'), line: document.getElementById('line'),
+  title: document.getElementById('title'), closer: document.getElementById('closer'),
+  playIcon: document.getElementById('playIcon'),
+};
+const ICON_PAUSE = 'M6 5h4v14H6zM14 5h4v14h-4z';
+const ICON_PLAY  = 'M8 5v14l11-7z';
+function setPlayIcon(isPlaying){
+  el.playIcon.querySelector('path').setAttribute('d', isPlaying?ICON_PAUSE:ICON_PLAY);
+  el.play.setAttribute('aria-label', isPlaying?'Pause':'Play');
+}
+
+let playing = false, dayIndex = 0, raf = null, lastT = 0, punch = 0, idleRaf = null;
+let activePunchWindow = null;
+// Bumped by startPlay() so an in-flight playReducedSequence's pending
+// setTimeouts recognize they're stale and stop touching shared state —
+// otherwise a reduced-motion viewer clicking Play mid-sequence would run
+// the animated path and the step-through sequence at once.
+let sequenceGen = 0;
+
+function fmtDay(idx){
+  const t = START + Math.floor(idx)*DAY_MS;
+  const label = new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+  return `Day ${Math.floor(idx)} · ${label}`;
+}
+function showLine(m){
+  el.line.textContent = m.line;
+  el.line.classList.toggle('big', !!m.big);
+  el.line.classList.add('on');
+  if (m.big) punch = 1;
+}
+function idleGlow(){
+  if (!REDUCED){ draw(dayIndex, punch, activePunchWindow); idleRaf = requestAnimationFrame(idleGlow); }
+}
+function stopIdle(){ if (idleRaf) cancelAnimationFrame(idleRaf); idleRaf = null; }
+
+function render(){
+  draw(dayIndex, punch, null);
+  el.scrub.value = Math.round((dayIndex/totalDays)*1000);
+  el.readout.textContent = fmtDay(Math.min(dayIndex, totalDays));
+  stopIdle();
+  if (!REDUCED) idleGlow();
+}
+function stopPlay(){ playing=false; setPlayIcon(false); if(raf) cancelAnimationFrame(raf); }
+
+// Shared by the animated playthrough (opts.alive checks `playing`, so a
+// Pause or a re-Play cancels it cleanly), the prefers-reduced-motion
+// step-through (opts.alive checks its own generation token, since that
+// path never sets `playing`), and — either way — the closing numbers are
+// the ONLY place this story's ending is expressed, so every path must
+// still reach them, just without the camera work leading up to it.
+function playClosing(opts){
+  opts = opts || {};
+  const alive = opts.alive || (() => (opts.checkPlaying ? playing : true));
+  let ci = 0;
+  function nextClose(){
+    if (!alive()) return;
+    if (ci >= CLOSING.length){ if (opts.onDone) opts.onDone(); return; }
+    const c = CLOSING[ci++];
+    el.closer.textContent = c.line;
+    el.closer.classList.add('on');
+    if (!REDUCED) idleGlow();
+    setTimeout(()=>{
+      if (!alive()) return;
+      el.closer.classList.remove('on');
+      setTimeout(nextClose, 320);
+    }, c.big ? 2200 : 1700);
+  }
+  nextClose();
+}
+
+function seekToDay(idx){
+  stopPlay(); punch = 0; activePunchWindow = null;
+  el.line.classList.remove('on'); el.title.classList.remove('on'); el.closer.classList.remove('on');
+  dayIndex = Math.max(0, Math.min(totalDays, idx));
+  render();
+}
+el.scrub.addEventListener('input', ()=> seekToDay(Math.round((el.scrub.value/1000)*totalDays)) );
+
+const milestoneStops = MILESTONES
+  .map(m => ({ m, idx: Math.round((parseD(m.d)-START)/DAY_MS) }))
+  .sort((a,b) => a.idx - b.idx);
+
+function startPlay(){
+  sequenceGen++;
+  stopIdle();
+  playing = true; setPlayIcon(true);
+  el.line.classList.remove('on'); el.closer.classList.remove('on');
+  punch = 0; dayIndex = 0; activePunchWindow = null;
+  const DAYS_PER_SEC = 4.6;
+  let stopI = 0;
+
+  function travelTo(target, onArrive){
+    stopIdle();
+    lastT = performance.now();
+    function step(now){
+      if (!playing) return;
+      const dt = (now-lastT)/1000; lastT = now;
+      dayIndex = Math.min(target, dayIndex + dt*DAYS_PER_SEC);
+      if (punch > 0) punch = Math.max(0, punch - 0.045);
+      draw(dayIndex, punch, null);
+      el.scrub.value = Math.round((dayIndex/totalDays)*1000);
+      el.readout.textContent = fmtDay(dayIndex);
+      if (dayIndex >= target){ onArrive(); return; }
+      raf = requestAnimationFrame(step);
+    }
+    raf = requestAnimationFrame(step);
+  }
+
+  function holdWithPunch(m, holdMs, cb){
+    const shownDay = Math.min(Math.floor(dayIndex), totalDays);
+    const crowdingFraction = TOTAL_NODES>0 ? (seedDaily[shownDay]+lessonDaily[shownDay])/TOTAL_NODES : 0;
+    const holdStart = performance.now();
+    activePunchWindow = m.big ? {active:true, localT:0, crowdingFraction} : null;
+    function tick(){
+      if (!playing) return;
+      const localT = Math.min(1, (performance.now()-holdStart)/holdMs);
+      if (activePunchWindow) activePunchWindow.localT = localT;
+      draw(dayIndex, punch, activePunchWindow);
+      if (localT < 1) requestAnimationFrame(tick);
+      else { activePunchWindow = null; cb(); }
+    }
+    tick();
+  }
+
+  function next(){
+    if (!playing) return;
+    if (stopI >= milestoneStops.length){
+      travelTo(totalDays, ()=>{ playClosing({checkPlaying:true, onDone:()=>{ stopPlay(); idleGlow(); }}); });
+      return;
+    }
+    const {m, idx} = milestoneStops[stopI++];
+    travelTo(idx, ()=>{
+      if (!playing) return;
+      showLine(m);
+      triggerBurst();
+      const hold = m.big ? 3800 : 2400;
+      holdWithPunch(m, hold, ()=>{
+        if (!playing) return;
+        el.line.classList.remove('on');
+        setTimeout(next, 260);
+      });
+    });
+  }
+
+  el.title.classList.add('on');
+  setTimeout(()=>{
+    if (!playing) return;
+    el.title.classList.remove('on');
+    setTimeout(next, 500);
+  }, 2200);
+}
+el.play.addEventListener('click', ()=>{ if (playing){ stopPlay(); return; } startPlay(); });
+
+// prefers-reduced-motion drops the continuous camera/travel — it must NOT
+// drop the story. Same title card and all nine milestone lines still show,
+// as instant cuts (no zoom, no easing) rather than a continuous move, then
+// the same real closing cards. "No continuous motion" and "same content"
+// are two different guarantees; this satisfies both instead of only the
+// first (the earlier version here jumped straight to the settled final
+// frame and only the closing cards — 9 of 10 real story beats were
+// silently missing for anyone with this preference set).
+function playReducedSequence(){
+  const myGen = sequenceGen;
+  const alive = () => sequenceGen === myGen;
+  const beats = [{kind:'title'}, ...milestoneStops.map(ms => ({kind:'milestone', ms}))];
+  let bi = 0;
+  function nextBeat(){
+    if (!alive()) return;
+    if (bi >= beats.length){
+      dayIndex = totalDays;
+      draw(dayIndex, 0, null);
+      el.scrub.value = 1000;
+      el.readout.textContent = fmtDay(totalDays);
+      playClosing({alive});
+      return;
+    }
+    const beat = beats[bi++];
+    if (beat.kind === 'title'){
+      el.title.classList.add('on');
+      setTimeout(()=>{
+        if (!alive()) return;
+        el.title.classList.remove('on');
+        setTimeout(()=>{ if (alive()) nextBeat(); }, 150);
+      }, 1500);
+    } else {
+      const {m, idx} = beat.ms;
+      dayIndex = idx;
+      draw(dayIndex, 0, null);
+      el.scrub.value = Math.round((dayIndex/totalDays)*1000);
+      el.readout.textContent = fmtDay(dayIndex);
+      showLine(m);
+      setTimeout(()=>{
+        if (!alive()) return;
+        el.line.classList.remove('on');
+        setTimeout(()=>{ if (alive()) nextBeat(); }, 150);
+      }, m.big ? 2600 : 1900);
+    }
+  }
+  nextBeat();
+}
+
+resize();
+setPlayIcon(false);
+BrainIntro.mount({
+  onUnlock(){
+    if (REDUCED){ playReducedSequence(); }
+    else { requestAnimationFrame(startPlay); }
+  }
+});
+})();
+</script>
