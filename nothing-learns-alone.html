@@ -1,4 +1,5 @@
 <title>Nothing Learns Alone</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>
   /* ── tokens ───────────────────────────────────────────────────────────
      Two designed worlds, not an inversion: dark is a scope screen (ink
@@ -63,7 +64,10 @@
     padding:calc(env(safe-area-inset-top,0px) + 16px) calc(env(safe-area-inset-right,0px) + 16px)
             calc(env(safe-area-inset-bottom,0px) + 16px) calc(env(safe-area-inset-left,0px) + 16px)}
   .splash.out{opacity:0;pointer-events:none}
-  .splash .card{max-width:min(62ch,100%);width:100%;margin:auto;
+  /* bound to real viewport units, not a parent percentage — under mobile
+     emulation the fixed-position parent and the layout viewport disagreed,
+     and a % width let the card exceed the screen it was sitting on */
+  .splash .card{max-width:min(62ch,calc(100vw - 32px));width:100%;margin:auto;
     padding:clamp(18px,3.2vw,34px) clamp(16px,3vw,32px);text-align:left}
   /* the end card sits OVER the finished map on purpose — you want to see what
      you built — so it needs its own opaque surface, not the page ground */
@@ -172,6 +176,14 @@
     .figures{gap:14px;bottom:14px;left:16px}
     .fig .v{font-size:16px}
     .hint{display:none}
+  }
+  @media (max-width:620px){
+    .splash h1{font-size:14px;letter-spacing:.2em}
+    .splash p{font-size:15px;line-height:1.72;margin-bottom:14px}
+    .splash .small{font-size:12.5px;line-height:1.6}
+    .splash .card{padding:22px 20px}
+    .actions button{padding:14px 20px;font-size:12.5px}
+    .hud2 .v{font-size:17px}
   }
   @media (prefers-reduced-motion:reduce){
     .panel,.tools{transition:none}
