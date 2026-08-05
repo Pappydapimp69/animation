@@ -14,27 +14,27 @@
     --alone:#6b787a;      /* never co-verified */
     --hot:#e6ede9;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
-    --shadow:0 10px 40px rgba(0,0,0,.5);
+    --shadow:0 10px 40px rgba(0,0,0,.5); --scrim:rgba(13,16,18,.78);
   }
   @media (prefers-color-scheme: light){
     :root{
       --bg:#e7e5de; --bg2:#dedbd2; --panel:#f2f0ea; --line:#c3c0b5;
       --ink:#1c2224; --dim:#5f6b6d; --faint:#9aa3a2;
       --multi:#0f7d69; --single:#a2631a; --alone:#98a09f; --hot:#0b0f10;
-      --shadow:0 10px 32px rgba(30,35,35,.18);
+      --shadow:0 10px 32px rgba(30,35,35,.18); --scrim:rgba(231,229,222,.80);
     }
   }
   :root[data-theme="dark"]{
     --bg:#0d1012; --bg2:#141819; --panel:#111517; --line:#2b3336;
     --ink:#dbe3e2; --dim:#7f8f91; --faint:#4d5a5c;
     --multi:#57bfa9; --single:#d9993f; --alone:#6b787a; --hot:#e6ede9;
-    --shadow:0 10px 40px rgba(0,0,0,.5);
+    --shadow:0 10px 40px rgba(0,0,0,.5); --scrim:rgba(13,16,18,.78);
   }
   :root[data-theme="light"]{
     --bg:#e7e5de; --bg2:#dedbd2; --panel:#f2f0ea; --line:#c3c0b5;
     --ink:#1c2224; --dim:#5f6b6d; --faint:#9aa3a2;
     --multi:#0f7d69; --single:#a2631a; --alone:#98a09f; --hot:#0b0f10;
-    --shadow:0 10px 32px rgba(30,35,35,.18);
+    --shadow:0 10px 32px rgba(30,35,35,.18); --scrim:rgba(231,229,222,.80);
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
@@ -47,6 +47,32 @@
   .hud{position:fixed;inset:0;pointer-events:none;z-index:2}
   .hud > *{pointer-events:auto}
 
+  /* the canvas carries no explanatory text any more — it all lives on the
+     splash, which doubles as the audio gesture browsers require */
+  .splash{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
+    background:var(--bg);transition:opacity .5s ease}
+  .splash.out{opacity:0;pointer-events:none}
+  .splash .card{max-width:62ch;padding:32px 30px;text-align:left}
+  /* the end card sits OVER the finished map on purpose — you want to see what
+     you built — so it needs its own opaque surface, not the page ground */
+  #endsplash{background:var(--scrim)}
+  #endsplash .card{background:var(--panel);border:1px solid var(--line);
+    box-shadow:var(--shadow);max-width:56ch}
+  .splash h1{font-size:15px;font-weight:600;letter-spacing:.36em;text-transform:uppercase;margin:0}
+  .splash .rule{height:1px;background:var(--line);margin:15px 0 14px}
+  .splash p{margin:0 0 13px;font-size:12px;line-height:1.75;color:var(--dim);text-wrap:pretty}
+  .splash p b{color:var(--ink);font-weight:600}
+  .splash .small{font-size:10.5px;color:var(--faint);line-height:1.7}
+  .actions{display:flex;gap:9px;margin-top:22px;flex-wrap:wrap}
+  .actions button{padding:11px 17px;font-size:11px}
+  .actions .primary{color:var(--bg);background:var(--multi);border-color:var(--multi)}
+  .actions .primary:hover{filter:brightness(1.1);color:var(--bg)}
+  /* in-game HUD: numbers only, no prose */
+  .hud2{position:absolute;left:22px;top:20px;display:flex;gap:20px;flex-wrap:wrap}
+  .hud2 .v{font-size:19px;font-variant-numeric:tabular-nums;color:var(--ink);line-height:1}
+  .hud2 .k{margin-top:5px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+  .hud2 .combo .v{color:var(--single)}
+  .hud2.hide,.figures.hide,.tools.hide,.hint.hide{display:none}
   .masthead{position:absolute;left:22px;top:20px;max-width:min(46ch,44vw)}
   .masthead h1{margin:0;font-size:13px;font-weight:600;letter-spacing:.34em;
     text-transform:uppercase;color:var(--ink)}
@@ -137,19 +163,10 @@
 <canvas id="c"></canvas>
 
 <div class="hud">
-  <div class="masthead">
-    <h1>Nothing Learns Alone</h1>
-    <div class="rule"></div>
-    <p>A lesson becomes knowledge when it is stress-tested against another
-       system. This is every such seam in the corpus — <b>269</b> of them,
-       drawn from <b>568</b> real lessons. <b>197</b> rest on a single
-       source. <b>28</b> projects have never been tested against anything
-       at all.</p>
-    <p class="caveat">Edges are derived from <b>Composed:</b> citations. Two open
-      questions in the corpus bear on this drawing: a known parser flaw can read an
-      illustrative mention of another system as a genuine composition, so a small
-      number of these seams are spurious — and because the graph records no negative
-      edges, a seam shown as untested may in fact have been tested and failed.</p>
+  <div class="hud2 hide" id="hud2">
+    <div><div class="v" id="g-seams">0</div><div class="k">seams closed</div></div>
+    <div><div class="v" id="g-nodes">1</div><div class="k">absorbed</div></div>
+    <div class="combo"><div class="v" id="g-combo">—</div><div class="k">chain</div></div>
   </div>
 
   <div class="tools">
@@ -176,6 +193,41 @@
   </div>
 
   <div class="trace" id="trace"></div>
+</div>
+
+<div class="splash" id="splash">
+  <div class="card">
+    <h1>Nothing Learns Alone</h1>
+    <div class="rule"></div>
+    <p>A lesson becomes knowledge only when it is stress-tested against another
+      system. This is every such seam in one real corpus — <b>269</b> of them,
+      drawn from <b>568</b> lessons across <b>124</b> projects. <b>197</b> rest on
+      a single source. <b>28</b> projects have never been tested against anything
+      at all, and never join the body.</p>
+    <p><b>Play:</b> you are the system. Steer with the pointer and touch a project
+      to absorb it. A seam closes when you hold <em>both</em> of its ends — so what
+      you score is not what you collect, it is what you connect.</p>
+    <p class="small">Edges come from <b>Composed:</b> citations. A known parser flaw can
+      read an illustrative mention as a genuine composition, so a few seams are spurious;
+      and because the graph records no negative edges, a pair shown as untested may in
+      fact have been tested and failed. Sound on.</p>
+    <div class="actions">
+      <button class="primary" id="b-play">Play</button>
+      <button id="b-explore">Just explore</button>
+    </div>
+  </div>
+</div>
+
+<div class="splash out" id="endsplash">
+  <div class="card">
+    <h1 id="e-title">Complete</h1>
+    <div class="rule"></div>
+    <p id="e-body"></p>
+    <div class="actions">
+      <button class="primary" id="b-again">Play again</button>
+      <button id="b-toexplore">Explore the map</button>
+    </div>
+  </div>
 </div>
 
 <aside class="panel" id="panel" aria-live="polite">
@@ -294,6 +346,187 @@ function bandLone(){
 let settle=REDUCED?420:300;
 for (let i=0;i<(REDUCED?420:150);i++) step(1);
 bandLone();
+
+/* ══ AUDIO ═══════════════════════════════════════════════════════════════
+   Built on the corpus's own audio lessons: everything is scheduled against
+   audioCtx.currentTime rather than setTimeout (JS timers drift and are
+   throttled when backgrounded), every voice is bounded and tears its own
+   chain down on ended (connected nodes are not freed for you), and the
+   context is created inside the splash's click handler because browsers
+   hold audio until a real gesture asks for it. */
+let AC=null, master=null, voices=0;
+const VOICE_CAP=18;
+function irBuffer(ctx,dur,decay){
+  const len=Math.floor(ctx.sampleRate*dur), b=ctx.createBuffer(2,len,ctx.sampleRate);
+  for(let c=0;c<2;c++){const d=b.getChannelData(c);
+    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay);}
+  return b;
+}
+function softClip(){
+  const n=1024,c=new Float32Array(n);
+  for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(x*1.5)/Math.tanh(1.5);}
+  return c;
+}
+function initAudio(){
+  if (AC) return;
+  const A=window.AudioContext||window.webkitAudioContext; if(!A) return;
+  AC=new A(); if (AC.state==='suspended') AC.resume();
+  master=AC.createGain(); master.gain.value=0.9;
+  const dry=AC.createGain(); dry.gain.value=0.84;
+  const wet=AC.createGain(); wet.gain.value=0.3;
+  const rev=AC.createConvolver(); rev.buffer=irBuffer(AC,2.4,2.4);
+  master.connect(dry); master.connect(rev).connect(wet);
+  const lo=AC.createBiquadFilter(); lo.type='lowshelf'; lo.frequency.value=180; lo.gain.value=2;
+  const hi=AC.createBiquadFilter(); hi.type='highshelf'; hi.frequency.value=6000; hi.gain.value=-4;
+  dry.connect(lo); wet.connect(lo); lo.connect(hi);
+  const sh=AC.createWaveShaper(); sh.curve=softClip(); sh.oversample='4x';
+  hi.connect(sh); sh.connect(AC.destination);
+  // bed: two slow voices, a fifth apart, breathing
+  const f=AC.createBiquadFilter(); f.type='lowpass'; f.frequency.value=520; f.Q.value=0.7;
+  f.connect(master);
+  const lfo=AC.createOscillator(), lg=AC.createGain();
+  lfo.frequency.value=0.05; lg.gain.value=160; lfo.connect(lg).connect(f.frequency); lfo.start();
+  [[55,0.030,'sine'],[82.5,0.016,'triangle']].forEach(([hz,g,t])=>{
+    const o=AC.createOscillator(), gg=AC.createGain();
+    o.type=t; o.frequency.value=hz; gg.gain.value=g; o.connect(gg).connect(f); o.start();
+  });
+}
+function tone(freq,when,dur,type,peak,pan){
+  if (!AC||voices>=VOICE_CAP) return;
+  voices++;
+  const o=AC.createOscillator(), g=AC.createGain(), pn=AC.createStereoPanner();
+  pn.pan.value=pan||0; o.type=type||'sine'; o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001,when);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002,peak),when+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,when+dur);
+  o.connect(g).connect(pn).connect(master);
+  o.start(when); o.stop(when+dur+0.03);
+  o.onended=()=>{voices--; try{o.disconnect();g.disconnect();pn.disconnect();}catch(e){}};
+}
+/* pentatonic so any combination of simultaneous hits stays consonant */
+const SCALE=[0,2,4,7,9,12,14,16,19,21,24,26,28,31];
+const semi=n=>220*Math.pow(2,n/12);
+function sfxAbsorb(chain,pan){
+  if(!AC) return; const t=AC.currentTime;
+  const deg=SCALE[Math.min(SCALE.length-1,chain)];
+  tone(semi(deg),t,0.34,'triangle',0.085,pan);
+  tone(semi(deg+12),t+0.005,0.20,'sine',0.035,pan);
+}
+function sfxSeam(n,pan){
+  if(!AC) return; const t=AC.currentTime;
+  for(let i=0;i<Math.min(3,n);i++)
+    tone(semi(SCALE[(i*2+2)%SCALE.length]+12),t+i*0.045,0.5,'sine',0.05,pan);
+}
+function sfxBreak(){
+  if(!AC) return; const t=AC.currentTime;
+  const o=AC.createOscillator(), g=AC.createGain(), f=AC.createBiquadFilter();
+  f.type='lowpass'; f.frequency.value=420;
+  o.type='square'; o.frequency.setValueAtTime(120,t);
+  o.frequency.exponentialRampToValueAtTime(52,t+0.22);
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.07,t+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);
+  o.connect(g).connect(f).connect(master); o.start(t); o.stop(t+0.3);
+}
+function sfxWin(){
+  if(!AC) return; const t=AC.currentTime;
+  [0,7,12,16,19,24].forEach((d,i)=>tone(semi(d),t+i*0.11,1.6,'triangle',0.07,(i%3-1)*0.3));
+}
+
+/* ══ GAME ════════════════════════════════════════════════════════════════
+   Snake's appetite, but the body is a SUBGRAPH, not a tail: absorbed
+   projects stay exactly where the corpus put them and light up in place,
+   so growth reveals the real structure instead of overwriting it with a
+   line. What you score is seams — an edge only counts once you hold BOTH
+   of its ends — which is the whole thesis expressed as a rule. */
+let mode='splash';
+const claimed=new Set();
+let chain=0, bestChain=0, seamsClosed=0;
+let brain={x:0,y:0,r:9}, ptr=null, started=false;
+/* Start at the chronologically FIRST project that is actually part of the
+   structure. The literal first (pocketzane) has no seams at all, so opening
+   there stranded the player on the outer band with nothing to connect to and
+   no chain possible — verified in a playtest before this fix. */
+const startNode = N.filter(n=>!n.alone)
+  .sort((a,b)=> a.s===b.s ? b.n-a.n : (a.s<b.s?-1:1))[0] || N[0];
+
+function seamsFor(id){
+  let c=0; for (const {o} of adj.get(id)||[]) if (claimed.has(o)) c++; return c;
+}
+function claim(n,silent){
+  if (claimed.has(n.id)) return;
+  const adjacent = (adj.get(n.id)||[]).some(x=>claimed.has(x.o));
+  claimed.add(n.id);
+  const closed = seamsFor(n.id);
+  seamsClosed += closed;
+  if (adjacent){ chain++; bestChain=Math.max(bestChain,chain); }
+  else { if (chain>0 && !silent) sfxBreak(); chain = 0; }
+  brain.r = 9 + Math.sqrt(claimed.size)*1.5;
+  if (!silent){
+    const pan=Math.max(-1,Math.min(1,(n.x-brain.x)/300));
+    sfxAbsorb(chain,pan);
+    if (closed) sfxSeam(closed,pan);
+    pops.push({x:n.x,y:n.y,t:0,n:closed});
+  }
+  syncHud();
+  if (claimed.size===N.length) finish();
+}
+const pops=[];
+function syncHud(){
+  document.getElementById('g-seams').textContent=seamsClosed;
+  document.getElementById('g-nodes').textContent=claimed.size;
+  document.getElementById('g-combo').textContent = chain>1? '×'+chain : '—';
+}
+function finish(){
+  mode='done';
+  document.getElementById('e-title').textContent='Every seam closed';
+  document.getElementById('e-body').innerHTML =
+    `You absorbed all <b>${N.length}</b> projects and closed <b>${seamsClosed}</b> seams — `
+    +`longest unbroken chain <b>${bestChain}</b>. <b>${aloneCount}</b> of those projects `
+    +`closed nothing at all: they have never been stress-tested against another system, `
+    +`so holding them connected you to nothing. That is the difference between collecting `
+    +`and learning.`;
+  document.getElementById('endsplash').classList.remove('out');
+  sfxWin();
+}
+function startGame(){
+  mode='play'; claimed.clear(); chain=0; bestChain=0; seamsClosed=0; pops.length=0;
+  brain.x=startNode.x; brain.y=startNode.y; brain.r=9;
+  claim(startNode,true);
+  panTarget={x:W/2-brain.x*view.k, y:H/2-brain.y*view.k};
+  document.getElementById('hud2').classList.remove('hide');
+  document.querySelector('.figures').classList.add('hide');
+  document.querySelector('.tools').classList.add('hide');
+  document.getElementById('endsplash').classList.add('out');
+  closePanel();
+  syncHud();
+}
+function enterExplore(){
+  mode='explore';
+  document.getElementById('hud2').classList.add('hide');
+  document.querySelector('.figures').classList.remove('hide');
+  document.querySelector('.tools').classList.remove('hide');
+  for (const n of N) claimed.add(n.id);
+  fit();
+}
+function tickGame(dt){
+  if (mode!=='play') return;
+  if (ptr){
+    const [wx,wy]=toWorld(ptr.x,ptr.y);
+    /* 0.16 lagged so far behind a moving pointer that a normal sweep
+       simply outran the brain and absorbed nothing */
+    brain.x += (wx-brain.x)*Math.min(1,0.30*dt);
+    brain.y += (wy-brain.y)*Math.min(1,0.30*dt);
+  }
+  for (const n of N){
+    if (claimed.has(n.id)) continue;
+    if (Math.hypot(n.x-brain.x,n.y-brain.y) < brain.r + n.rad + 5) claim(n,false);
+  }
+  for (let i=pops.length-1;i>=0;i--){ pops[i].t+=dt*0.05; if(pops[i].t>1) pops.splice(i,1); }
+  /* keep the brain in frame without yanking the camera */
+  const sx=brain.x*view.k+view.x, sy=brain.y*view.k+view.y, m=160;
+  if (sx<m||sx>W-m||sy<m||sy>H-m)
+    panTarget={x:W/2-brain.x*view.k, y:H/2-brain.y*view.k};
+}
 
 /* ── view transform ──────────────────────────────────────────────────── */
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
@@ -475,6 +708,8 @@ function pick(sx,sy){
   return best;
 }
 cv.addEventListener('pointermove',e=>{
+  ptr={x:e.clientX,y:e.clientY};
+  if (mode==='play') return;
   if (drag){
     moved=true;
     if (dragNode){
@@ -491,6 +726,8 @@ cv.addEventListener('pointermove',e=>{
   cv.classList.toggle('overnode',!!hover);
 });
 cv.addEventListener('pointerdown',e=>{
+  ptr={x:e.clientX,y:e.clientY};
+  if (mode==='play'){ return; }
   cv.setPointerCapture(e.pointerId);
   moved=false;
   const n=pick(e.clientX,e.clientY);
@@ -499,6 +736,7 @@ cv.addEventListener('pointerdown',e=>{
   cv.classList.add('grabbing');
 });
 cv.addEventListener('pointerup',e=>{
+  if (mode==='play') return;
   cv.classList.remove('grabbing');
   const n=pick(e.clientX,e.clientY);
   if (dragNode){ dragNode.pinned=false; }
@@ -566,9 +804,13 @@ function draw(){
   /* edges */
   for (const e of E){
     const a=byId.get(e.a), b=byId.get(e.b); if(!a||!b) continue;
+    const both=claimed.has(e.a)&&claimed.has(e.b);
+    const one =claimed.has(e.a)||claimed.has(e.b);
+    if (mode==='play' && !one) continue;          // undiscovered structure stays dark
     const [ax,ay]=toScreen(a), [bx,by]=toScreen(b);
     const onPath=pathEdges.has(e.a+'|'+e.b);
     let al = e.w>=2?0.82:0.46;
+    if (mode==='play') al = both ? al : 0.10;      // a half-held seam is only a hint
     if (hoverId){
       const touches = e.a===hoverId||e.b===hoverId;
       al = touches ? 1 : al*0.16;
@@ -597,6 +839,12 @@ function draw(){
     let dim = hoverId ? (isHot||isNbr?1:0.24) : 1;
     if (path) dim = inPath.has(n.id)?1:0.2;
 
+    const has = claimed.has(n.id);
+    if (mode==='play' && !has){
+      ctx.strokeStyle=rgba(P.faint,0.5); ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(x,y,Math.max(2,r*0.72),0,7); ctx.stroke();
+      continue;
+    }
     if (n.alone){
       ctx.strokeStyle=rgba(P.alone,0.75*dim); ctx.lineWidth=1;
       ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.stroke();
@@ -613,14 +861,33 @@ function draw(){
     /* label candidates are collected, not drawn — in the dense core the
        landmarks overlapped into an unreadable stack, so placement is a
        greedy pass by importance with an overlap test (below) */
-    const showLabel = isHot || inPath.has(n.id)
+    const showLabel = (mode!=='play' || claimed.has(n.id)) && (isHot || inPath.has(n.id)
       || n.n>=15 || n.deg>=12
       || (view.k>0.75 && (n.n>=6||n.deg>=6))
-      || (view.k>1.5 && n.deg>0);
+      || (view.k>1.5 && n.deg>0));
     if (showLabel && dim>0.5){
       labels.push({n,x,y,r,dim,isHot,
         w:0, imp:(isHot?1e6:0)+(inPath.has(n.id)?1e5:0)+n.n*3+n.deg});
     }
+  }
+
+  /* the brain itself, and the bloom of each absorption */
+  if (mode==='play'||mode==='done'){
+    for (const q of pops){
+      const [px,py]=toScreen({x:q.x,y:q.y});
+      const rr=(10+q.t*46)*Math.min(1.9,Math.max(.5,view.k));
+      ctx.strokeStyle=rgba(q.n?P.multi:P.single,(1-q.t)*0.75);
+      ctx.lineWidth=1.6; ctx.beginPath(); ctx.arc(px,py,rr,0,7); ctx.stroke();
+    }
+    const [bx2,by2]=toScreen(brain);
+    const br=brain.r*Math.min(1.9,Math.max(.5,view.k));
+    ctx.save(); ctx.globalCompositeOperation='lighter';
+    ctx.fillStyle=rgba(P.multi,0.16);
+    ctx.beginPath(); ctx.arc(bx2,by2,br*2.5,0,7); ctx.fill(); ctx.restore();
+    ctx.fillStyle=rgba(P.multi,0.9);
+    ctx.beginPath(); ctx.arc(bx2,by2,br,0,7); ctx.fill();
+    ctx.strokeStyle=rgba(P.hot,0.85); ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.arc(bx2,by2,br+3,0,7); ctx.stroke();
   }
 
   /* greedy label placement, most important first */
@@ -649,6 +916,7 @@ function draw(){
 let first=true;
 function frame(){
   requestAnimationFrame(frame);
+  tickGame(1);
   if (settle>0){ const k=REDUCED?8:2; for(let i=0;i<k;i++) step(1); settle-=k; if (first&&settle<=0){first=false;} }
   else if (dragNode){ step(1); }
   if (settle>0 && settle%25===0) bandLone();
@@ -665,6 +933,24 @@ function frame(){
 fit();
 if (REDUCED){ while(settle>0){ step(1); settle--; } fit(); }
 frame();
+
+/* a deliberate testing seam: headless verification cannot reach closure
+   state, and guessing at why the brain was not absorbing anything cost a
+   full playtest run. Read-only. */
+window.__game={ get mode(){return mode}, get claimed(){return claimed.size},
+  get brain(){return {x:brain.x,y:brain.y,r:brain.r}}, get ptr(){return ptr},
+  get seams(){return seamsClosed}, get view(){return {x:view.x,y:view.y,k:view.k}},
+  get nodes(){return N.map(n=>({id:n.id,x:n.x,y:n.y,r:n.rad,c:claimed.has(n.id),alone:n.alone}))},
+  get start(){return startNode.id} };
+
+/* splash + mode wiring */
+function leaveSplash(){ document.getElementById('splash').classList.add('out'); }
+document.getElementById('b-play').addEventListener('click',()=>{ initAudio(); leaveSplash(); startGame(); });
+document.getElementById('b-explore').addEventListener('click',()=>{ initAudio(); leaveSplash(); enterExplore(); });
+document.getElementById('b-again').addEventListener('click',()=>{ startGame(); });
+document.getElementById('b-toexplore').addEventListener('click',()=>{
+  document.getElementById('endsplash').classList.add('out'); enterExplore(); });
+document.querySelector('.hint').classList.add('hide');
 
 /* figures */
 document.getElementById('f-nodes').textContent=N.length;
