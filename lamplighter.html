@@ -146,6 +146,211 @@
 </footer>
 
 <script>
+/* Vendored from Pappydapimp69/Brain, shared/brain-intro.js — the shared
+   audio-unlock gesture gate every Brain-derived web app mounts. Copy the
+   source file's contents here verbatim when it updates; keep this page
+   self-contained rather than depending on a cross-repo asset path. */
+(function () {
+  "use strict";
+  if (customElements.get("brain-intro")) return;
+
+  const INTRO_REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  class BrainIntroEl extends HTMLElement {
+    constructor() {
+      super();
+      this._fired = false;
+      this._onUnlock = null;
+      this._label = "you're tapping this — i already know";
+      const root = this.attachShadow({ mode: "open" });
+      root.innerHTML = `
+        <style>
+          :host{ all:initial; position:fixed; inset:0; z-index:2147483647; }
+          .btn{
+            all:unset; box-sizing:border-box; position:absolute; inset:0;
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            gap:22px; cursor:pointer; background:#05070c; color:#eef1f6;
+            font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+            opacity:1; transition:opacity .35s ease;
+          }
+          .btn:focus-visible{ outline:2px solid #3987e5; outline-offset:-4px; }
+          canvas{ width:120px; height:120px; }
+          .label{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#7c8492; text-align:center; padding:0 24px; }
+          :host([data-out]) .btn{ opacity:0; pointer-events:none; }
+          @media (prefers-reduced-motion:reduce){ .btn{ transition-duration:.001ms; } }
+        </style>
+        <button class="btn" type="button" part="button">
+          <canvas width="120" height="120" aria-hidden="true"></canvas>
+          <span class="label"></span>
+        </button>
+      `;
+      this._button = root.querySelector(".btn");
+      this._canvas = root.querySelector("canvas");
+      this._labelEl = root.querySelector(".label");
+    }
+
+    connectedCallback() {
+      this._labelEl.textContent = this._label;
+      this._button.setAttribute("aria-label", this._label);
+      this._raf = null;
+      this._t0 = performance.now();
+      if (!INTRO_REDUCED) this._animate();
+      else this._paint(0);
+
+      const fire = (e) => this._fire(e);
+      this._button.addEventListener("pointerdown", fire, { once: true });
+      this._button.addEventListener("click", fire, { once: true });
+
+      requestAnimationFrame(() => this._button.focus({ preventScroll: true }));
+    }
+
+    disconnectedCallback() {
+      if (this._raf) cancelAnimationFrame(this._raf);
+    }
+
+    _animate() {
+      const step = () => {
+        this._paint((performance.now() - this._t0) / 1000);
+        this._raf = requestAnimationFrame(step);
+      };
+      this._raf = requestAnimationFrame(step);
+    }
+
+    _paint(t) {
+      const ctx = this._canvas.getContext("2d");
+      const W = 120, H = 120, cx = 60, cy = 60;
+      ctx.clearRect(0, 0, W, H);
+      const breathe = INTRO_REDUCED ? 1 : 0.9 + 0.1 * Math.sin(t * 2.1);
+      [[-1, "#3987e5"], [1, "#d95926"]].forEach(([side, color]) => {
+        const lx = cx + side * 13, ly = cy;
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 14 * breathe;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.ellipse(lx, ly, 15 * breathe, 18 * breathe, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      if (!INTRO_REDUCED) {
+        const p = (t * 0.6) % 1;
+        ctx.save();
+        ctx.strokeStyle = "#eef1f6";
+        ctx.globalAlpha = (1 - p) * 0.35;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 26 + p * 30, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    _fire(e) {
+      if (this._fired) return;
+      this._fired = true;
+
+      let audioCtx = null;
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+          audioCtx = new AC();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+          this._playSting(audioCtx);
+        }
+      } catch (err) { /* Web Audio unsupported or blocked — sting/unlock still proceed with null */ }
+
+      if (this._raf) cancelAnimationFrame(this._raf);
+      const STING_MS = INTRO_REDUCED ? 0 : 500;
+      if (!INTRO_REDUCED) this._stingAnimate(audioCtx);
+
+      setTimeout(() => {
+        try {
+          if (this._onUnlock) this._onUnlock(audioCtx);
+        } finally {
+          this.setAttribute("data-out", "");
+          const done = () => this.remove();
+          if (INTRO_REDUCED) done();
+          else this._button.addEventListener("transitionend", done, { once: true });
+        }
+      }, STING_MS);
+    }
+
+    _playSting(ctx) {
+      this._stingClock0 = ctx.currentTime;
+      const now = this._stingClock0;
+      const notes = [
+        { f: 392.0, t: 0.0, d: 0.25, g: 0.16 },
+        { f: 587.33, t: 0.06, d: 0.25, g: 0.16 },
+      ];
+      notes.forEach((n) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = n.f;
+        gain.gain.setValueAtTime(0, now + n.t);
+        gain.gain.linearRampToValueAtTime(n.g, now + n.t + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + n.t + n.d);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + n.t);
+        osc.stop(now + n.t + n.d + 0.05);
+      });
+    }
+
+    // One clock drives both halves: when Web Audio is available this reads
+    // audioCtx.currentTime — the same clock _playSting scheduled against —
+    // every frame, so the flash and the ping can't drift apart.
+    _stingAnimate(audioCtx) {
+      const perf0 = performance.now();
+      const step = () => {
+        const t = audioCtx ? (audioCtx.currentTime - this._stingClock0) : (performance.now() - perf0) / 1000;
+        this._paintSting(Math.min(t, 0.45));
+        if (t < 0.45) this._raf = requestAnimationFrame(step);
+      };
+      this._raf = requestAnimationFrame(step);
+    }
+
+    _paintSting(t) {
+      const ctx = this._canvas.getContext("2d");
+      const W = 120, H = 120, cx = 60, cy = 60;
+      ctx.clearRect(0, 0, W, H);
+      const conv = Math.min(1, t / 0.45);
+      const sep = 13 * (1 - conv * 0.7);
+      const scale = 1 + conv * 0.25;
+      [[-1, "#3987e5"], [1, "#d95926"]].forEach(([side, color]) => {
+        const lx = cx + side * sep, ly = cy;
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 14 * scale;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.ellipse(lx, ly, 15 * scale, 18 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    set onUnlock(fn) { this._onUnlock = fn; }
+    set label(s) { this._label = s; }
+  }
+
+  customElements.define("brain-intro", BrainIntroEl);
+
+  window.BrainIntro = {
+    mount(opts) {
+      opts = opts || {};
+      const el = document.createElement("brain-intro");
+      if (opts.label) el.label = opts.label;
+      el.onUnlock = opts.onUnlock || null;
+      document.body.appendChild(el);
+      return el;
+    },
+  };
+})();
+</script>
+
+<script>
 (function(){
 "use strict";
 const TAU = Math.PI*2, DUR = 26.0;
@@ -560,8 +765,12 @@ function frame(now,forced){
 }
 
 resize();
-logLine("<b>0.00s</b> → director start · cosmetic tracks are pure f(t), markers dispatch by pointer");
-last=performance.now();
-requestAnimationFrame(frame);
+BrainIntro.mount({
+  onUnlock(){
+    logLine("<b>0.00s</b> → director start · cosmetic tracks are pure f(t), markers dispatch by pointer");
+    last=performance.now();
+    requestAnimationFrame(frame);
+  }
+});
 })();
 </script>

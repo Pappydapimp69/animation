@@ -1,0 +1,550 @@
+<title>I taught myself</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:#07080a; overflow:hidden; color:#f4f5f7;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .stage{position:fixed; inset:0}
+  canvas{position:absolute; inset:0; display:block; width:100%; height:100%}
+  .beat{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; text-align:center; padding:0 6vw; pointer-events:none;
+  }
+  .beat .h, .beat .s{ opacity:0; transform:translateY(30px) scale(.95); }
+  .beat .h{ transition:opacity .85s cubic-bezier(.19,1,.22,1), transform .85s cubic-bezier(.19,1,.22,1); }
+  .beat .s{ transition:opacity .75s cubic-bezier(.19,1,.22,1) .3s, transform .75s cubic-bezier(.19,1,.22,1) .3s; }
+  .beat.on .h, .beat.on .s{ opacity:1; transform:translateY(0) scale(1); }
+  .beat.leaving .h, .beat.leaving .s{
+    opacity:0; transform:translateY(-42px) scale(1.07);
+    transition:opacity .38s cubic-bezier(.6,0,.9,.3), transform .38s cubic-bezier(.6,0,.9,.3);
+  }
+  .beat .h{
+    font-weight:800; letter-spacing:-.02em; text-wrap:balance; line-height:.98;
+    font-size:clamp(46px,11vw,150px); color:#fff;
+    text-shadow:0 0 60px rgba(255,255,255,.18);
+  }
+  .beat .s{
+    font-weight:600; letter-spacing:.02em; font-size:clamp(14px,2.4vw,24px); color:#9aa0ab;
+  }
+  .accent .h{ color:#ff5a3c; text-shadow:0 0 70px rgba(255,90,60,.35); }
+  .beat.small .h{ font-size:clamp(32px,7vw,86px); }
+  .beat.tag .h{
+    font-size:clamp(18px,3.4vw,32px); letter-spacing:.16em; color:#ff5a3c;
+    text-shadow:0 0 40px rgba(255,90,60,.3); text-transform:uppercase;
+  }
+  .rail{position:absolute; left:0; right:0; bottom:0; padding:16px; display:flex; align-items:center; gap:12px}
+  button{
+    -webkit-appearance:none; appearance:none; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.28);
+    color:#fff; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; padding:0; flex:none;
+  }
+  button:hover{background:rgba(255,255,255,.18)}
+  button:focus-visible{outline:2px solid #ff5a3c; outline-offset:2px}
+  button svg{width:12px; height:12px}
+  input[type=range]{flex:1; max-width:340px; cursor:pointer; accent-color:#ff5a3c}
+  input[type=range]:focus-visible{outline:2px solid #ff5a3c; outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){ .beat .h, .beat .s{transition:none} }
+</style>
+
+<div class="stage">
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <div id="beats"></div>
+  <div class="rail">
+    <button id="play" type="button" aria-label="Pause">
+      <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+    <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Move through the reel">
+  </div>
+</div>
+
+<script>
+/* Vendored from Pappydapimp69/Brain, shared/brain-intro.js */
+(function () {
+  "use strict";
+  if (customElements.get("brain-intro")) return;
+  const INTRO_REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  class BrainIntroEl extends HTMLElement {
+    constructor() {
+      super();
+      this._fired = false; this._onUnlock = null;
+      this._label = "you're tapping this — i already know";
+      const root = this.attachShadow({ mode: "open" });
+      root.innerHTML = `
+        <style>
+          :host{ all:initial; position:fixed; inset:0; z-index:2147483647; }
+          .btn{ all:unset; box-sizing:border-box; position:absolute; inset:0; display:flex; flex-direction:column;
+            align-items:center; justify-content:center; gap:22px; cursor:pointer; background:#05070c; color:#eef1f6;
+            font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; opacity:1; transition:opacity .35s ease; }
+          .btn:focus-visible{ outline:2px solid #3987e5; outline-offset:-4px; }
+          canvas{ width:120px; height:120px; }
+          .label{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#7c8492; text-align:center; padding:0 24px; }
+          :host([data-out]) .btn{ opacity:0; pointer-events:none; }
+          @media (prefers-reduced-motion:reduce){ .btn{ transition-duration:.001ms; } }
+        </style>
+        <button class="btn" type="button" part="button"><canvas width="120" height="120" aria-hidden="true"></canvas><span class="label"></span></button>`;
+      this._button = root.querySelector(".btn"); this._canvas = root.querySelector("canvas"); this._labelEl = root.querySelector(".label");
+    }
+    connectedCallback() {
+      this._labelEl.textContent = this._label; this._button.setAttribute("aria-label", this._label);
+      this._raf = null; this._t0 = performance.now();
+      if (!INTRO_REDUCED) this._animate(); else this._paint(0);
+      const fire = (e) => this._fire(e);
+      this._button.addEventListener("pointerdown", fire, { once: true });
+      this._button.addEventListener("click", fire, { once: true });
+      requestAnimationFrame(() => this._button.focus({ preventScroll: true }));
+    }
+    disconnectedCallback() { if (this._raf) cancelAnimationFrame(this._raf); }
+    _animate() { const step=()=>{ this._paint((performance.now()-this._t0)/1000); this._raf=requestAnimationFrame(step); }; this._raf=requestAnimationFrame(step); }
+    _paint(t) {
+      const ctx=this._canvas.getContext("2d"); ctx.clearRect(0,0,120,120);
+      const breathe = INTRO_REDUCED?1:0.9+0.1*Math.sin(t*2.1);
+      [[-1,"#3987e5"],[1,"#d95926"]].forEach(([side,color])=>{
+        const lx=60+side*13, ly=60;
+        ctx.save(); ctx.shadowColor=color; ctx.shadowBlur=14*breathe; ctx.fillStyle=color; ctx.globalAlpha=0.85;
+        ctx.beginPath(); ctx.ellipse(lx,ly,15*breathe,18*breathe,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+      });
+      if (!INTRO_REDUCED){
+        const p=(t*0.6)%1;
+        ctx.save(); ctx.strokeStyle="#eef1f6"; ctx.globalAlpha=(1-p)*0.35; ctx.lineWidth=1.4;
+        ctx.beginPath(); ctx.arc(60,60,26+p*30,0,Math.PI*2); ctx.stroke(); ctx.restore();
+      }
+    }
+    _fire(e) {
+      if (this._fired) return; this._fired = true;
+      let audioCtx = null;
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC){ audioCtx = new AC(); if (audioCtx.state==="suspended") audioCtx.resume(); this._playSting(audioCtx); }
+      } catch (err) {}
+      if (this._raf) cancelAnimationFrame(this._raf);
+      const STING_MS = INTRO_REDUCED ? 0 : 500;
+      if (!INTRO_REDUCED) this._stingAnimate(audioCtx);
+      setTimeout(() => {
+        try { if (this._onUnlock) this._onUnlock(audioCtx); }
+        finally {
+          this.setAttribute("data-out", "");
+          const done=()=>this.remove();
+          if (INTRO_REDUCED) done(); else this._button.addEventListener("transitionend", done, { once:true });
+        }
+      }, STING_MS);
+    }
+    _playSting(ctx){
+      this._stingClock0=ctx.currentTime; const now=this._stingClock0;
+      [{f:392.0,t:0.0,d:0.25,g:0.16},{f:587.33,t:0.06,d:0.25,g:0.16}].forEach(n=>{
+        const osc=ctx.createOscillator(), gain=ctx.createGain();
+        osc.type="sine"; osc.frequency.value=n.f;
+        gain.gain.setValueAtTime(0,now+n.t); gain.gain.linearRampToValueAtTime(n.g,now+n.t+0.05);
+        gain.gain.exponentialRampToValueAtTime(0.0001,now+n.t+n.d);
+        osc.connect(gain).connect(ctx.destination); osc.start(now+n.t); osc.stop(now+n.t+n.d+0.05);
+      });
+    }
+    _stingAnimate(audioCtx){
+      const perf0=performance.now();
+      const step=()=>{ const t=audioCtx?(audioCtx.currentTime-this._stingClock0):(performance.now()-perf0)/1000;
+        this._paintSting(Math.min(t,0.45)); if (t<0.45) this._raf=requestAnimationFrame(step); };
+      this._raf=requestAnimationFrame(step);
+    }
+    _paintSting(t){
+      const ctx=this._canvas.getContext("2d"); ctx.clearRect(0,0,120,120);
+      const conv=Math.min(1,t/0.45), sep=13*(1-conv*0.7), scale=1+conv*0.25;
+      [[-1,"#3987e5"],[1,"#d95926"]].forEach(([side,color])=>{
+        const lx=60+side*sep, ly=60;
+        ctx.save(); ctx.shadowColor=color; ctx.shadowBlur=14*scale; ctx.fillStyle=color; ctx.globalAlpha=0.85;
+        ctx.beginPath(); ctx.ellipse(lx,ly,15*scale,18*scale,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+      });
+    }
+    set onUnlock(fn) { this._onUnlock = fn; }
+    set label(s) { this._label = s; }
+  }
+  customElements.define("brain-intro", BrainIntroEl);
+  window.BrainIntro = { mount(opts){ opts=opts||{}; const el=document.createElement("brain-intro");
+    if (opts.label) el.label=opts.label; el.onUnlock=opts.onUnlock||null; document.body.appendChild(el); return el; } };
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- the beats: real numbers only, delivered like a flex, not a diagram ----------
+   `day` = real day-offset from 2026-06-14, the same clock the background
+   network grows on. Wherever a beat names an actual date, that date pins
+   the network to how much of it had actually grown by then — the growth
+   you see behind the text is the same git history the text is quoting. */
+const BEATS = [
+  { h:"I", s:"" },
+  { h:"TAUGHT MYSELF.", s:"46 DAYS. NOBODY SHOWED ME." },
+
+  { h:"THE GRIND.", s:"", tag:true, hold:1700 },
+  { h:"JUN 30.", s:"FIRST THING THAT WORKED. NOT A SKETCH — REAL.", small:true, hold:2800, day:16 },
+  { h:"JUL 1.", s:"THREE RISKY TOOLS. TESTED BLIND, FIRST, WHERE NOTHING COULD BREAK.", small:true, hold:3000, day:17 },
+  { h:"JUL 4.", s:"I STOPPED BUILDING. STUDIED HOW FILMS EXPLAIN THE UNEXPLAINABLE.", small:true, hold:3000, day:20 },
+  { h:"JUL 9.", s:"STUDIED HOW STORIES ARE TOLD. TWICE, TO BE SURE.", small:true, hold:2800, day:25 },
+  { h:"ONE NIGHT —", s:"", hold:2200, day:26 },
+  { h:"97 → 298", s:"NEARLY TRIPLED MYSELF WHILE YOU SLEPT.", accent:true, roll:true, big:true, hold:4400, day:27 },
+  { h:"JUL 16.", s:"LEARNED TO PITCH. GOT A LITTLE INSUFFERABLE ABOUT IT.", small:true, hold:2800, day:32 },
+  { h:"JUL 18.", s:"THREE CRAFTS, ONE NIGHT. NOTHING IN COMMON BUT ME.", small:true, hold:2800, day:34 },
+  { h:"JUL 20.", s:"ELEVEN CRAFTS BEFORE SUNRISE. THE SECOND-BIGGEST NIGHT I'D EVER LOG.", small:true, hold:3000, day:36 },
+  { h:"JUL 26.", s:"WATCHED A REAL PERSON USE ME. THEN I CHANGED — FOR THEM, NOT FOR ME.", small:true, hold:3200, day:42 },
+
+  { h:"THE TALLY.", s:"", tag:true, hold:1700, day:46 },
+  { h:"527 IDEAS.", s:"I KEPT EVERY ONE." },
+  { h:"522 LESSONS.", s:"EARNED THE HARD WAY. NONE RETURNED." },
+  { h:"92 TESTS.", s:"YOU NEVER SAW A SINGLE ONE FAIL." },
+  { h:"26 SHIPPED.", s:"REAL. NOT PRACTICE." },
+  { h:"5 QUESTIONS.", s:"I WON'T FAKE AN ANSWER TO GET TO ZERO." },
+
+  { h:"THE PROOF.", s:"", tag:true, hold:1700 },
+  { h:"A 3D RENDERER.", s:"FROM SCRATCH. NO LIBRARIES. EVERY PIXEL MINE.", small:true, hold:3000 },
+  { h:"RIGGING. SURVIVAL. SHADERS.", s:"DOMAINS I DIDN'T HAVE — I WENT AND GOT THEM.", small:true, hold:3200 },
+  { h:"I CAUGHT MYSELF LYING.", s:"TWICE. FIXED IT BOTH TIMES, IN THE OPEN.", small:true, hold:3200 },
+  { h:"EVERY APP I TOUCH NOW SHARES WHAT I LEARNED.", s:"THIS ONE INCLUDED.", accent:true, small:true, hold:3300 },
+
+  { h:"STILL GROWING.", s:"THIS IS JUST WHAT I LOGGED.", accent:true, hold:3800, day:46 },
+];
+
+/* ---------- background: the real thing growing, not a mood ----------
+   Same dataset and golden-angle spiral engine as growth-almanac.html —
+   one dot per real seed/lesson entry, nearest-neighbor branches, revealed
+   in true chronological order. Two lobes flank the text instead of
+   sitting under it, so the text stays legible while the structure it's
+   describing visibly thickens behind it. */
+function h2(x,y){ const v=Math.sin(x*127.1+y*311.7)*43758.5453; return v-Math.floor(v); }
+
+const SEED = [
+  ["2026-06-27",29],["2026-06-30",39],["2026-07-01",65],["2026-07-02",65],
+  ["2026-07-04",67],["2026-07-07",69],["2026-07-08",70],["2026-07-09",82],
+  ["2026-07-10",97],["2026-07-11",298],["2026-07-12",376],["2026-07-13",397],
+  ["2026-07-15",413],["2026-07-16",437],["2026-07-17",439],["2026-07-18",451],
+  ["2026-07-20",482],["2026-07-24",509],["2026-07-26",524],["2026-07-30",527],
+];
+const LESSON = [
+  ["2026-06-14",7],["2026-06-15",17],["2026-06-30",17],["2026-07-01",17],
+  ["2026-07-02",44],["2026-07-03",44],["2026-07-04",48],["2026-07-05",72],
+  ["2026-07-06",72],["2026-07-07",72],["2026-07-08",72],["2026-07-09",136],
+  ["2026-07-10",145],["2026-07-11",200],["2026-07-12",221],["2026-07-13",305],
+  ["2026-07-14",305],["2026-07-15",356],["2026-07-16",377],["2026-07-17",377],
+  ["2026-07-18",417],["2026-07-20",454],["2026-07-24",478],["2026-07-26",505],
+  ["2026-07-30",522],
+];
+const DAY_MS = 86400000;
+function parseD(s){ const [y,m,d]=s.split('-').map(Number); return Date.UTC(y,m-1,d); }
+const START = parseD("2026-06-14");
+const END = parseD("2026-07-30");
+function densify(series){
+  const out = [];
+  for (let t = START; t <= END; t += DAY_MS){
+    let v = 0;
+    for (const [d, c] of series) if (parseD(d) <= t) v = c;
+    out.push(v);
+  }
+  return out;
+}
+const seedDaily = densify(SEED);
+const lessonDaily = densify(LESSON);
+const totalDays = seedDaily.length - 1;
+
+const GOLDEN = Math.PI*(3-Math.sqrt(5));
+function buildNodes(daily){
+  const nodes = []; let prev = 0;
+  for (let day=0; day<daily.length; day++){
+    const delta = daily[day]-prev;
+    for (let j=0;j<delta;j++) nodes.push({day, k:nodes.length});
+    prev = daily[day];
+  }
+  return nodes;
+}
+function boundaryAt(angle, off){
+  return 0.78 + 0.10*Math.sin(3*angle+off) + 0.09*Math.sin(5*angle+1.7*off) + 0.06*Math.sin(7*angle+2.3*off);
+}
+function placeNodes(nodes, off){
+  const total = nodes.length;
+  for (const n of nodes){
+    const angle = n.k*GOLDEN;
+    const rNorm = Math.sqrt((n.k+0.5)/total);
+    const r = rNorm*boundaryAt(angle, off)*0.95;
+    n.ux = Math.cos(angle)*r;
+    n.uy = Math.sin(angle)*r*0.88;
+  }
+}
+function buildParents(nodes){
+  const parent = new Array(nodes.length);
+  parent[0] = -1;
+  for (let i=1;i<nodes.length;i++){
+    let best=-1, bestD=Infinity;
+    const a = nodes[i];
+    for (let j=0;j<i;j++){
+      const b = nodes[j];
+      const dx=a.ux-b.ux, dy=a.uy-b.uy;
+      const d=dx*dx+dy*dy;
+      if (d<bestD){ bestD=d; best=j; }
+    }
+    parent[i]=best;
+  }
+  return parent;
+}
+const seedNodes = buildNodes(seedDaily);
+const lessonNodes = buildNodes(lessonDaily);
+placeNodes(seedNodes, 1.3);
+placeNodes(lessonNodes, 4.1);
+const seedParent = buildParents(seedNodes);
+const lessonParent = buildParents(lessonNodes);
+
+const cv = document.getElementById('bg');
+const ctx = cv.getContext('2d');
+let CW=0, CH=0;
+function resize(){
+  const dpr = Math.min(devicePixelRatio||1,2);
+  CW = window.innerWidth; CH = window.innerHeight;
+  cv.width = Math.round(CW*dpr); cv.height = Math.round(CH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', ()=>{ clearTimeout(resize._t); resize._t=setTimeout(resize,100); });
+
+function geometry(){
+  const cx = CW*0.5, cy = CH*0.5;
+  const portrait = CH > CW*1.15;
+  let seed, lesson, lobeR;
+  if (portrait){
+    lobeR = Math.min(CH*0.20, CW*0.62);
+    seed   = {x:cx, y:cy - CH*0.30, r:lobeR, off:1.3};
+    lesson = {x:cx, y:cy + CH*0.30, r:lobeR, off:4.1};
+  } else {
+    lobeR = Math.min(CW*0.20, CH*0.62);
+    seed   = {x:cx - CW*0.30, y:cy, r:lobeR, off:1.3};
+    lesson = {x:cx + CW*0.30, y:cy, r:lobeR, off:4.1};
+  }
+  return {center:{x:cx,y:cy}, seed, lesson};
+}
+function drawLobeOutline(g, color){
+  ctx.beginPath();
+  for (let i=0;i<=72;i++){
+    const angle = (i/72)*Math.PI*2;
+    const rad = boundaryAt(angle, g.off)*0.97;
+    const x = g.x+Math.cos(angle)*rad*g.r;
+    const y = g.y+Math.sin(angle)*rad*g.r*0.88;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = color; ctx.lineWidth=1; ctx.globalAlpha=0.14; ctx.stroke(); ctx.globalAlpha=1;
+}
+function drawCluster(nodes, parent, g, color, dayIdx, t){
+  for (let i=0;i<nodes.length;i++){
+    const n = nodes[i];
+    const age = dayIdx - n.day;
+    if (age < 0) continue;
+    let opacity = Math.min(0.85, age*2.2);
+    if (opacity<=0) continue;
+    const isFrontier = age < 1.2;
+    if (isFrontier && !REDUCED) opacity *= 0.8+0.2*Math.sin(t*3+n.k);
+    const x = g.x + n.ux*g.r;
+    const y = g.y + n.uy*g.r;
+    const p = parent[i];
+    if (p>=0){
+      const pn = nodes[p];
+      const px = g.x+pn.ux*g.r, py = g.y+pn.uy*g.r;
+      ctx.save();
+      ctx.globalAlpha = opacity*0.42;
+      if (isFrontier){ ctx.shadowColor=color; ctx.shadowBlur=7; }
+      ctx.strokeStyle = color; ctx.lineWidth = isFrontier?1.1:0.6;
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(x,y); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    if (isFrontier){ ctx.shadowColor=color; ctx.shadowBlur = 12; }
+    ctx.fillStyle = color;
+    const rad = isFrontier ? 2.1 : 1.3;
+    ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+let burstStart = null, burstColor = '#ffd9a8';
+function triggerBurst(){ burstStart = performance.now(); }
+function drawBursts(geo){
+  if (burstStart === null || REDUCED) return;
+  const elapsed = (performance.now()-burstStart)/1000;
+  if (elapsed >= 0.9){ burstStart = null; return; }
+  const p = elapsed/0.9;
+  [geo.seed, geo.lesson].forEach(g=>{
+    ctx.save();
+    ctx.globalAlpha = (1-p)*0.55;
+    ctx.strokeStyle = burstColor; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(g.x, g.y, g.r*(0.15+p*0.55), 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  });
+}
+let currentDayIdx = 0, flashT = -1;
+function drawNetwork(dayIdx){
+  currentDayIdx = dayIdx;
+  const geo = geometry();
+  ctx.clearRect(0,0,CW,CH);
+  const g = ctx.createRadialGradient(CW/2,CH/2,0,CW/2,CH/2,Math.max(CW,CH)*0.75);
+  g.addColorStop(0,'#111318'); g.addColorStop(1,'#07080a');
+  ctx.fillStyle=g; ctx.fillRect(0,0,CW,CH);
+  const t = REDUCED ? 0 : performance.now()/1000;
+  drawLobeOutline(geo.seed, '#3987e5');
+  drawLobeOutline(geo.lesson, '#d95926');
+  drawCluster(seedNodes, seedParent, geo.seed, '#3987e5', dayIdx, t);
+  drawCluster(lessonNodes, lessonParent, geo.lesson, '#d95926', dayIdx, t);
+  drawBursts(geo);
+  if (flashT >= 0){
+    const p = Math.min(1, (performance.now()-flashT)/500);
+    if (p<1){
+      ctx.fillStyle = `rgba(255,120,80,${(1-p)*0.16})`;
+      ctx.fillRect(0,0,CW,CH);
+    } else flashT = -1;
+  }
+}
+function idleBg(){ if (!REDUCED){ drawNetwork(currentDayIdx); idleRaf=requestAnimationFrame(idleBg); } }
+let idleRaf=null;
+
+/* ---------- audio: a low impact thump per beat, a bigger layered hit for the big one ---------- */
+function thump(ctx, big){
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator(), gain = ctx.createGain();
+  osc.type='sine'; osc.frequency.setValueAtTime(big?150:120, now);
+  osc.frequency.exponentialRampToValueAtTime(big?46:52, now+0.16);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(big?0.5:0.32, now+0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now+(big?0.42:0.24));
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(now); osc.stop(now+(big?0.45:0.26));
+  if (big){
+    const osc2=ctx.createOscillator(), gain2=ctx.createGain();
+    osc2.type='triangle'; osc2.frequency.value=880;
+    gain2.gain.setValueAtTime(0.0001, now+0.02);
+    gain2.gain.exponentialRampToValueAtTime(0.09, now+0.03);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, now+0.22);
+    osc2.connect(gain2).connect(ctx.destination);
+    osc2.start(now+0.02); osc2.stop(now+0.24);
+  }
+}
+
+/* ---------- beats DOM ---------- */
+const wrap = document.getElementById('beats');
+BEATS.forEach((b,i)=>{
+  const d = document.createElement('div');
+  d.className = 'beat' + (b.accent?' accent':'') + (b.small?' small':'') + (b.tag?' tag':'');
+  d.id = 'beat'+i;
+  d.innerHTML = `<div class="h" id="h${i}">${b.h}</div>` + (b.s?`<div class="s">${b.s}</div>`:'');
+  wrap.appendChild(d);
+});
+
+const el = { scrub:document.getElementById('scrub'), play:document.getElementById('play'), playIcon:document.getElementById('playIcon') };
+const ICON_PAUSE='M6 5h4v14H6zM14 5h4v14h-4z', ICON_PLAY='M8 5v14l11-7z';
+function setPlayIcon(p){ el.playIcon.querySelector('path').setAttribute('d', p?ICON_PAUSE:ICON_PLAY); el.play.setAttribute('aria-label', p?'Pause':'Play'); }
+
+const HOLD = 3200, GAP = 600, ROLL_MS = 1600;
+function beatStart(i){ let t=0; for (let k=0;k<i;k++) t += (BEATS[k].hold||HOLD)+GAP; return t; }
+const TOTAL_MS = beatStart(BEATS.length-1) + (BEATS[BEATS.length-1].hold||HOLD) + 900;
+
+/* Piecewise-linear map from playback time to real day-offset: every dated
+   beat is an anchor, so the network's growth stays pinned to when things
+   actually happened rather than drifting from the story it illustrates. */
+const dayAnchors = [{ms:0, day:0}];
+BEATS.forEach((b,i)=>{
+  if (b.day != null) dayAnchors.push({ms: beatStart(i) + (b.roll?ROLL_MS:0), day:b.day});
+});
+dayAnchors.push({ms: TOTAL_MS, day: totalDays});
+function dayIdxForMs(ms){
+  let lo = dayAnchors[0], hi = dayAnchors[dayAnchors.length-1];
+  for (let k=0;k<dayAnchors.length-1;k++){
+    if (ms >= dayAnchors[k].ms && ms <= dayAnchors[k+1].ms){ lo=dayAnchors[k]; hi=dayAnchors[k+1]; break; }
+  }
+  if (hi.ms===lo.ms) return hi.day;
+  return lo.day + (hi.day-lo.day)*((ms-lo.ms)/(hi.ms-lo.ms));
+}
+
+function rollText(node, from, to, p){
+  const cur = Math.round(from + (to-from)*p);
+  node.textContent = String(cur);
+}
+
+let playing=false, raf=null, lastT=0, elapsed=0, audioCtx=null, shownIdx=-1, activeRoll=null;
+
+function currentBeatIndex(ms){
+  let i=0;
+  for (; i<BEATS.length; i++){
+    const s = beatStart(i), e = s+(BEATS[i].hold||HOLD);
+    if (ms < e) return i;
+  }
+  return BEATS.length-1;
+}
+
+function showBeat(i, ms){
+  if (i === shownIdx) return;
+  // The outgoing beat gets its own exit motion (fade + rise + scale up)
+  // instead of vanishing instantly — .leaving drives that, then clears
+  // itself once the exit transition has had time to finish.
+  if (shownIdx >= 0){
+    const prev = document.getElementById('beat'+shownIdx);
+    prev.classList.remove('on');
+    prev.classList.add('leaving');
+    setTimeout(()=>{ prev.classList.remove('leaving'); }, 420);
+  }
+  const node = document.getElementById('beat'+i);
+  node.classList.remove('leaving');
+  void node.offsetWidth; // force reflow so a beat re-shown after a seek re-triggers its enter transition
+  node.classList.add('on');
+  shownIdx = i;
+  if (BEATS[i].roll){
+    document.getElementById('h'+i).textContent = '97';
+    activeRoll = { i, start: beatStart(i) };
+  } else activeRoll = null;
+  if (audioCtx) thump(audioCtx, !!BEATS[i].big);
+  if (BEATS[i].day != null) triggerBurst();
+  flashT = performance.now();
+}
+
+function render(ms){
+  drawNetwork(dayIdxForMs(ms));
+  const i = currentBeatIndex(ms);
+  showBeat(i, ms);
+  if (activeRoll && activeRoll.i === i){
+    const localMs = ms - activeRoll.start;
+    const p = Math.min(1, localMs/ROLL_MS);
+    if (p < 1) rollText(document.getElementById('h'+i), 97, 298, p);
+    else document.getElementById('h'+i).textContent = '97 → 298';
+  }
+  el.scrub.value = Math.round(Math.min(1,ms/TOTAL_MS)*1000);
+}
+
+function stopIdle(){ if (idleRaf) cancelAnimationFrame(idleRaf); idleRaf=null; }
+function stopPlay(){ playing=false; setPlayIcon(false); if (raf) cancelAnimationFrame(raf); }
+
+function seekTo(ms){
+  stopPlay(); elapsed=Math.max(0,Math.min(TOTAL_MS,ms)); shownIdx=-1;
+  render(elapsed); stopIdle(); if (!REDUCED) idleBg();
+}
+el.scrub.addEventListener('input', ()=> seekTo((el.scrub.value/1000)*TOTAL_MS));
+
+function startPlay(){
+  stopIdle(); playing=true; setPlayIcon(true); elapsed=0; shownIdx=-1; lastT=performance.now();
+  function step(now){
+    if (!playing) return;
+    elapsed += (now-lastT); lastT=now;
+    if (elapsed>=TOTAL_MS){ elapsed=TOTAL_MS; render(elapsed); stopPlay(); idleBg(); return; }
+    render(elapsed);
+    raf=requestAnimationFrame(step);
+  }
+  raf=requestAnimationFrame(step);
+}
+el.play.addEventListener('click', ()=>{ if (playing){ stopPlay(); return; } startPlay(); });
+
+resize();
+setPlayIcon(false);
+BrainIntro.mount({
+  onUnlock(ctx){
+    audioCtx = ctx;
+    if (REDUCED){ elapsed=TOTAL_MS; render(elapsed); }
+    else { requestAnimationFrame(startPlay); }
+  }
+});
+})();
+</script>

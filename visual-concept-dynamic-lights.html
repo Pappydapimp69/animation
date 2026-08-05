@@ -1,0 +1,380 @@
+<title>Visual concept: dynamic lights</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --void:#03040a; --stage-bg:#070a12;
+    --ink:#eef1f6; --ink-dim:#8a93a3;
+    --seed:#4a9bff; --lesson:#ff8a3d; --signal:#ffe1a8;
+    --mono: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:var(--void); overflow:hidden; color:var(--ink); font-family:var(--mono); -webkit-font-smoothing:antialiased}
+  .stage{position:fixed; inset:0}
+  canvas#net{position:absolute; inset:0; display:block; width:100%; height:100%}
+
+  .hud{position:absolute; top:0; left:0; right:0; padding:16px 20px; display:flex; justify-content:space-between; pointer-events:none; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-dim)}
+  .counters{position:absolute; left:20px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:20px; pointer-events:none}
+  .counters .n{font-size:clamp(22px,4vw,34px); font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); display:block}
+  .counters .l{font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-dim); margin-top:4px; display:flex; align-items:center; gap:6px}
+  .dot{width:7px; height:7px; border-radius:50%; flex:none}
+  .c.seed .dot{background:var(--seed)} .c.lesson .dot{background:var(--lesson)}
+
+  .rail{position:absolute; left:0; right:0; bottom:0; padding:14px 20px; display:flex; align-items:center; gap:12px}
+  button{-webkit-appearance:none; appearance:none; background:transparent; border:1px solid rgba(238,241,246,.22); color:var(--ink-dim); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0}
+  button:hover{border-color:var(--ink-dim); color:var(--ink)}
+  button:focus-visible{outline:2px solid var(--seed); outline-offset:2px}
+  button svg{width:11px; height:11px}
+  input[type=range]{flex:1; max-width:280px; accent-color:var(--seed); cursor:pointer}
+  .readout{font-size:10.5px; color:var(--ink-dim); min-width:96px; text-align:right}
+</style>
+
+<div class="stage">
+  <canvas id="net" role="img" aria-label="A concept demo: two clusters of light growing over 46 real days, where each day's new points arrive as glowing comet trails, with larger days producing longer, denser showers of arrivals."></canvas>
+  <div class="hud">
+    <span>concept: dynamic lights &middot; not final</span>
+    <span id="range">jun 14 &rarr; jul 30, 2026</span>
+  </div>
+  <div class="counters">
+    <div class="c seed"><span class="n" id="cSeed">0</span><span class="l"><i class="dot"></i>seeds</span></div>
+    <div class="c lesson"><span class="n" id="cLesson">0</span><span class="l"><i class="dot"></i>stones</span></div>
+  </div>
+  <div class="rail">
+    <button id="play" type="button" aria-label="Pause">
+      <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+    <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Move through the timeline">
+    <span class="readout" id="readout">Day 0 &middot; Jun 14</span>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- real data ---------- */
+const SEED = [
+  ["2026-06-27",29],["2026-06-30",39],["2026-07-01",65],["2026-07-02",65],
+  ["2026-07-04",67],["2026-07-07",69],["2026-07-08",70],["2026-07-09",82],
+  ["2026-07-10",97],["2026-07-11",298],["2026-07-12",376],["2026-07-13",397],
+  ["2026-07-15",413],["2026-07-16",437],["2026-07-17",439],["2026-07-18",451],
+  ["2026-07-20",482],["2026-07-24",509],["2026-07-26",524],["2026-07-30",527],
+];
+const LESSON = [
+  ["2026-06-14",7],["2026-06-15",17],["2026-06-30",17],["2026-07-01",17],
+  ["2026-07-02",44],["2026-07-03",44],["2026-07-04",48],["2026-07-05",72],
+  ["2026-07-06",72],["2026-07-07",72],["2026-07-08",72],["2026-07-09",136],
+  ["2026-07-10",145],["2026-07-11",200],["2026-07-12",221],["2026-07-13",305],
+  ["2026-07-14",305],["2026-07-15",356],["2026-07-16",377],["2026-07-17",377],
+  ["2026-07-18",417],["2026-07-20",454],["2026-07-24",478],["2026-07-26",505],
+  ["2026-07-30",522],
+];
+
+const DAY_MS = 86400000;
+function parseD(s){ const [y,m,d]=s.split('-').map(Number); return Date.UTC(y,m-1,d); }
+const START = parseD("2026-06-14");
+const END = parseD("2026-07-30");
+function densify(series){
+  const out = [];
+  for (let t = START; t <= END; t += DAY_MS){
+    let v = 0;
+    for (const [d, c] of series) if (parseD(d) <= t) v = c;
+    out.push(v);
+  }
+  return out;
+}
+const seedDaily = densify(SEED);
+const lessonDaily = densify(LESSON);
+const totalDays = seedDaily.length - 1;
+
+/* ---------- nodes: final resting position (golden-angle spiral, unchanged
+   packing) + nearest-neighbor parent (unchanged) ---------- */
+const GOLDEN = Math.PI*(3-Math.sqrt(5));
+function buildNodes(daily){
+  const nodes = [];
+  let prev = 0;
+  for (let day=0; day<daily.length; day++){
+    const delta = daily[day]-prev;
+    for (let j=0;j<delta;j++) nodes.push({day, k:nodes.length});
+    prev = daily[day];
+  }
+  return nodes;
+}
+function boundaryAt(angle, off){
+  return 0.78 + 0.10*Math.sin(3*angle+off) + 0.09*Math.sin(5*angle+1.7*off) + 0.06*Math.sin(7*angle+2.3*off);
+}
+function placeNodes(nodes, off){
+  const total = nodes.length;
+  for (const n of nodes){
+    const angle = n.k*GOLDEN;
+    const rNorm = Math.sqrt((n.k+0.5)/total);
+    const r = rNorm*boundaryAt(angle, off)*0.95;
+    n.ux = Math.cos(angle)*r;
+    n.uy = Math.sin(angle)*r*0.88;
+  }
+}
+function buildParents(nodes){
+  const parent = new Array(nodes.length);
+  parent[0] = -1;
+  for (let i=1;i<nodes.length;i++){
+    let best=-1, bestD=Infinity;
+    const a = nodes[i];
+    for (let j=0;j<i;j++){
+      const b = nodes[j];
+      const dx=a.ux-b.ux, dy=a.uy-b.uy;
+      const d=dx*dx+dy*dy;
+      if (d<bestD){ bestD=d; best=j; }
+    }
+    parent[i]=best;
+  }
+  return parent;
+}
+const seedNodes = buildNodes(seedDaily), lessonNodes = buildNodes(lessonDaily);
+placeNodes(seedNodes, 1.3); placeNodes(lessonNodes, 4.1);
+const seedParent = buildParents(seedNodes), lessonParent = buildParents(lessonNodes);
+
+/* ---------- NEW: per-node arrival schedule. A day's batch gets a window
+   sized by sqrt(count) (MOTION/pacing/sub-linear-batch-reveal-timing) —
+   small days stay snappy, day 27's 201-node jump gets a genuinely longer,
+   denser shower instead of "the same fade, just more of them."
+   ONE shared dayStart table drives both clusters AND the readout — three
+   independently-computed tables (one per cluster, one for the readout)
+   drifted apart on any day where seed/lesson counts differed, so a
+   cluster's own nodes could land ahead of what the readout still claimed
+   the day was (caught: cSeed=192 showing while the readout said "Day 25,"
+   whose real seed count is 82 — the seed-only table was running fast). ---------- */
+const MS_PER_DAY = 190;
+function windowFor(count){ return count>0 ? (140 + Math.sqrt(count)*130) : 0; }
+const dayStart = (function(){
+  const tbl = new Float64Array(seedDaily.length);
+  let cursor = 0;
+  for (let d=0; d<seedDaily.length; d++){
+    tbl[d] = cursor;
+    const sc = seedDaily[d]-(d>0?seedDaily[d-1]:0), lc = lessonDaily[d]-(d>0?lessonDaily[d-1]:0);
+    cursor += Math.max(MS_PER_DAY, windowFor(sc), windowFor(lc));
+  }
+  return { tbl, total: cursor };
+})();
+function scheduleArrivals(nodes, daily){
+  let dayFirstK = 0, curDay = 0;
+  for (let i=0;i<nodes.length;i++){
+    const n = nodes[i];
+    if (n.day !== curDay){ curDay = n.day; dayFirstK = n.k; }
+    const count = daily[n.day] - (n.day>0?daily[n.day-1]:0);
+    const j = n.k - dayFirstK;
+    const window = windowFor(count);
+    n.arrivalStart = dayStart.tbl[n.day] + (count>1 ? (j/count)*window : 0);
+    n.pulse = count>=30 && (j%15===0); // rhythm beat through a long shower
+  }
+}
+scheduleArrivals(seedNodes, seedDaily);
+scheduleArrivals(lessonNodes, lessonDaily);
+const ARRIVE_MS = 480;
+// TOTAL_MS is when the LAST arrival starts, not when it lands — playback
+// must run ARRIVE_MS past that or the trailing handful of nodes on the
+// final day never finish their flight before the scene is called "settled".
+const TOTAL_MS = dayStart.total;
+const PLAYBACK_MS = TOTAL_MS + ARRIVE_MS;
+
+function smootherstep(t){ t=Math.max(0,Math.min(1,t)); return t*t*t*(t*(6*t-15)+10); }
+
+/* ---------- ambient idle particles — purely atmospheric, deterministic ---------- */
+function h2(x,y){ const v=Math.sin(x*127.1+y*311.7)*43758.5453; return v-Math.floor(v); }
+const EMBERS = Array.from({length:22}, (_,i)=>({
+  seed:i, r: 0.55+h2(i,1)*0.4,
+}));
+
+/* ---------- canvas ---------- */
+const stage = document.querySelector('.stage');
+const cv = document.getElementById('net');
+const ctx = cv.getContext('2d');
+let CW=0, CH=0;
+function resize(){
+  const r = stage.getBoundingClientRect();
+  const dpr = Math.min(devicePixelRatio||1, 2);
+  CW = r.width; CH = r.height;
+  cv.width = Math.round(CW*dpr); cv.height = Math.round(CH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  draw(elapsed);
+}
+window.addEventListener('resize', ()=>{ clearTimeout(resize._t); resize._t=setTimeout(resize,100); });
+
+function geometry(){
+  const cx = CW*0.5, cy = CH*0.53;
+  const lobeR = Math.min(CW*0.28, CH*0.42);
+  return {
+    center:{x:cx,y:cy},
+    seed:   {x: cx-lobeR*0.62, y: cy, r: lobeR},
+    lesson: {x: cx+lobeR*0.62, y: cy, r: lobeR},
+  };
+}
+
+function posOf(n, g){ return { x: g.x + n.ux*g.r, y: g.y + n.uy*g.r }; }
+
+function drawCluster(nodes, parent, g, color, elapsedMs){
+  for (let i=0;i<nodes.length;i++){
+    const n = nodes[i];
+    const t = elapsedMs - n.arrivalStart;
+    if (t < 0) continue; // hasn't started arriving yet
+
+    const finalPos = posOf(n, g);
+    const src = parent[i] >= 0 ? posOf(nodes[parent[i]], g) : {x:g.x, y:g.y};
+
+    if (t < ARRIVE_MS){
+      // IN FLIGHT: eased travel from parent's resting spot to this node's
+      // own spot, with a fading comet trail behind the bright head.
+      const p = smootherstep(t/ARRIVE_MS);
+      const x = src.x + (finalPos.x-src.x)*p;
+      const y = src.y + (finalPos.y-src.y)*p;
+      const steps = 5;
+      for (let s=0; s<steps; s++){
+        const bp = Math.max(0, p - s*0.09);
+        const bx = src.x + (finalPos.x-src.x)*bp;
+        const by = src.y + (finalPos.y-src.y)*bp;
+        ctx.save();
+        ctx.globalAlpha = (1-s/steps)*0.55;
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(bx,by, 2.4*(1-s/steps*0.6), 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+      ctx.save();
+      ctx.shadowColor = color; ctx.shadowBlur = 16;
+      ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.arc(x,y, 2.6, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+      continue;
+    }
+
+    // SETTLED: parent edge + resting point with a brief landing burst,
+    // then a slow idle twinkle so nothing ever sits perfectly static.
+    const settleT = t - ARRIVE_MS;
+    if (parent[i] >= 0){
+      ctx.save();
+      ctx.globalAlpha = 0.42;
+      ctx.strokeStyle = color; ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.moveTo(src.x,src.y); ctx.lineTo(finalPos.x,finalPos.y); ctx.stroke();
+      ctx.restore();
+    }
+    const twinkle = REDUCED ? 1 : 0.75+0.25*Math.sin(elapsedMs/620 + n.k*1.7);
+    ctx.save();
+    ctx.shadowColor = color; ctx.shadowBlur = 8*twinkle;
+    ctx.fillStyle = color; ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.arc(finalPos.x,finalPos.y, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    if (settleT < 260){
+      const bp = settleT/260;
+      ctx.save();
+      ctx.globalAlpha = (1-bp)*(n.pulse?0.85:0.55);
+      ctx.strokeStyle = n.pulse ? '#ffe1a8' : color;
+      ctx.lineWidth = n.pulse ? 1.6 : 1;
+      ctx.beginPath(); ctx.arc(finalPos.x,finalPos.y, 3+bp*(n.pulse?16:9), 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+function drawEmbers(elapsedMs, g){
+  if (REDUCED) return;
+  const t = elapsedMs/1000;
+  for (const e of EMBERS){
+    const ang = t*0.08 + e.seed*2.4;
+    const rad = Math.min(CW,CH)*0.44*e.r;
+    const x = g.center.x + Math.cos(ang)*rad;
+    const y = g.center.y + Math.sin(ang*0.7)*rad*0.5;
+    const tw = 0.3+0.3*Math.sin(t*1.3+e.seed*5);
+    ctx.save();
+    ctx.globalAlpha = tw*0.5;
+    ctx.fillStyle = '#ffe1a8';
+    ctx.beginPath(); ctx.arc(x,y,0.9,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+let elapsed = 0;
+function draw(elapsedMs){
+  ctx.clearRect(0,0,CW,CH);
+  ctx.fillStyle = '#070a12'; ctx.fillRect(0,0,CW,CH);
+  const g = geometry();
+  const vg = ctx.createRadialGradient(g.center.x,g.center.y,Math.min(CW,CH)*0.1,g.center.x,g.center.y,Math.max(CW,CH)*0.75);
+  vg.addColorStop(0,'rgba(7,10,18,0)'); vg.addColorStop(1,'rgba(3,4,10,.85)');
+  ctx.fillStyle = vg; ctx.fillRect(0,0,CW,CH);
+
+  drawEmbers(elapsedMs, g);
+  drawCluster(seedNodes, seedParent, g.seed, '#4a9bff', elapsedMs);
+  drawCluster(lessonNodes, lessonParent, g.lesson, '#ff8a3d', elapsedMs);
+}
+
+/* ---------- playback: elapsed real ms drives everything (schedule +
+   camera-free); scrub maps the bar directly onto TOTAL_MS ---------- */
+const el = {
+  scrub: document.getElementById('scrub'), play: document.getElementById('play'),
+  readout: document.getElementById('readout'), playIcon: document.getElementById('playIcon'),
+  cSeed: document.getElementById('cSeed'), cLesson: document.getElementById('cLesson'),
+};
+const ICON_PAUSE = 'M6 5h4v14H6zM14 5h4v14h-4z';
+const ICON_PLAY = 'M8 5v14l11-7z';
+function setPlayIcon(p){ el.playIcon.querySelector('path').setAttribute('d', p?ICON_PAUSE:ICON_PLAY); el.play.setAttribute('aria-label', p?'Pause':'Play'); }
+
+// day lookup for the readout: reuse the SAME shared dayStart table the
+// arrival schedule itself was built from — no second table to drift from it.
+function dayForElapsed(elapsedMs){
+  let d=0;
+  for (let i=0;i<dayStart.tbl.length;i++){ if (dayStart.tbl[i]<=elapsedMs) d=i; else break; }
+  return d;
+}
+function countsAt(elapsedMs){
+  let sc=0, lc=0;
+  for (const n of seedNodes) if (elapsedMs - n.arrivalStart >= ARRIVE_MS) sc++;
+  for (const n of lessonNodes) if (elapsedMs - n.arrivalStart >= ARRIVE_MS) lc++;
+  return [sc,lc];
+}
+function fmtDay(d){
+  const t = START + d*DAY_MS;
+  const label = new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+  return `Day ${d} · ${label}`;
+}
+
+let playing=false, raf=null, lastT=0, idleRaf=null;
+
+function render(){
+  draw(elapsed);
+  el.scrub.value = Math.round((elapsed/PLAYBACK_MS)*1000);
+  el.readout.textContent = fmtDay(Math.min(dayForElapsed(elapsed), totalDays));
+  const [sc,lc] = countsAt(elapsed);
+  el.cSeed.textContent = sc; el.cLesson.textContent = lc;
+}
+function stopIdle(){ if (idleRaf) cancelAnimationFrame(idleRaf); idleRaf=null; }
+function idleGlow(){ if (!REDUCED){ draw(elapsed); idleRaf=requestAnimationFrame(idleGlow); } }
+
+function stopPlay(){ playing=false; setPlayIcon(false); if(raf) cancelAnimationFrame(raf); }
+function seekTo(ms){
+  stopPlay();
+  elapsed = Math.max(0, Math.min(PLAYBACK_MS, ms));
+  render(); stopIdle(); if (!REDUCED) idleGlow();
+}
+el.scrub.addEventListener('input', ()=> seekTo((el.scrub.value/1000)*PLAYBACK_MS) );
+
+function startPlay(){
+  stopIdle();
+  playing = true; setPlayIcon(true);
+  elapsed = 0;
+  lastT = performance.now();
+  function step(now){
+    if (!playing) return;
+    elapsed += (now-lastT); lastT = now;
+    if (elapsed >= PLAYBACK_MS){ elapsed = PLAYBACK_MS; render(); stopPlay(); idleGlow(); return; }
+    render();
+    raf = requestAnimationFrame(step);
+  }
+  raf = requestAnimationFrame(step);
+}
+el.play.addEventListener('click', ()=>{ if (playing){ stopPlay(); return; } startPlay(); });
+
+resize();
+setPlayIcon(false);
+if (REDUCED){ elapsed = PLAYBACK_MS; render(); }
+else { requestAnimationFrame(startPlay); }
+})();
+</script>
