@@ -1048,6 +1048,154 @@ function applyMoodAudio(m){
   droneGain3.gain.linearRampToValueAtTime(0.005+m*0.017, now+0.08);
   if (droneFilter) droneFilter.frequency.setTargetAtTime(480+m*820, now, 0.6);
 }
+
+/* ───────── the score. Previous version was a drone + percussive hits and
+   nothing else, which is exactly the failure the drone-riser-stinger
+   kernel names: a stinger with no RISER reads as random rather than
+   earned, and a drone with no riser has no forward momentum. It also had
+   no theme at all, so the mastering pass (reverb/EQ/limiter) polished a
+   signal with nothing in it to polish — the audio equivalent of the
+   chronicle mistake this file already made once in its narration.
+
+   GLUE THEME (leitmotif/thematic-hierarchy): five notes, opening on a
+   rising fifth so it survives fragmentation (memorability-test kernel:
+   distinctive opening interval, short, hummable after two bars). The
+   hierarchy's payoff is structural — the story's own event is enacted BY
+   the transformation, not merely accompanied. Here the film's spine is
+   "I wanted to finish something ... I stopped needing to", so:
+     acts I-V  the theme is FRAGMENTED — only its opening cell ever
+               plays, in minor. It never finishes, because he never does.
+     epilogue  AUGMENTED (stretched, weightier) as the reckoning lands
+     line 22   the ONLY full statement, MODE-FLIPPED to major — the theme
+               completes at the exact moment the narration says he
+               stopped needing to complete anything.
+   Per-act RE-ORCHESTRATION carries identity without new material
+   (game-adapted kernel: instrumentation, not new melody).
+
+   Scheduling honors dog#E14/shadow#E1: a look-ahead window against
+   audioCtx.currentTime, never per-note setTimeout (JS timers drift and
+   are throttled when backgrounded). Voice budget + onended teardown per
+   dog#E6 — connected nodes are not freed for you. */
+const THEME = [0, 7, 5, 3, 7];            // semitones; opens on a rising 5th
+const THEME_RHY = [0, 0.5, 0.9, 1.4, 2.3]; // beats — distinctive, uneven cell
+const ROOT = 220;                          // A3
+function semi(n){ return ROOT*Math.pow(2, n/12); }
+
+/* re-orchestration table: same pitches, different voice per act */
+function voiceForAct(t){
+  if (t<16)  return {type:'sine',     cut:900,  gain:0.055, det:0};
+  if (t<58)  return {type:'triangle', cut:1400, gain:0.050, det:4};
+  if (t<88)  return {type:'sawtooth', cut:900,  gain:0.035, det:7};
+  if (t<118) return {type:'triangle', cut:1100, gain:0.055, det:0};
+  if (t<150) return {type:'sine',     cut:1700, gain:0.050, det:0};
+  /* finale voice sits lower than the acts above it on purpose: the
+     epilogue drone is already near full mood, so the only complete
+     statement of the theme has to fit ON TOP of it without driving the
+     soft-clip limiter into audible saturation — measured 0.905 peak at
+     gain 0.060, which is real distortion rather than headroom. */
+  return       {type:'triangle', cut:2000, gain:0.040, det:0};
+}
+
+let voiceCount = 0;
+const VOICE_BUDGET = 16;
+function playNote(ctx, freq, when, dur, v, pan, gainScale){
+  if (voiceCount >= VOICE_BUDGET) return;   // dog#E6: bounded polyphony
+  voiceCount++;
+  const osc=ctx.createOscillator(), g=ctx.createGain(), f=ctx.createBiquadFilter();
+  const p=ctx.createStereoPanner(); p.pan.value=pan||0;
+  f.type='lowpass'; f.frequency.value=v.cut; f.Q.value=0.6;
+  osc.type=v.type; osc.frequency.value=freq; osc.detune.value=v.det||0;
+  const peak=(v.gain)*(gainScale==null?1:gainScale);
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002,peak), when+0.035);
+  g.gain.exponentialRampToValueAtTime(0.0001, when+dur);
+  osc.connect(g).connect(f).connect(p).connect(masterIn);
+  osc.start(when); osc.stop(when+dur+0.05);
+  osc.onended=()=>{ voiceCount--; try{osc.disconnect();g.disconnect();f.disconnect();p.disconnect();}catch(e){} };
+}
+
+/* THE MISSING LAYER. A riser is what makes a stinger feel earned: a
+   gradual pitch+intensity build in the seconds BEFORE a big beat, so the
+   hit resolves something instead of just arriving. Small beats skip
+   straight to a soft stinger; only genuinely big ones earn the full
+   drone-riser-stinger sequence, so the audio itself communicates scale. */
+function riser(ctx, when, dur, toFreq){
+  const osc=ctx.createOscillator(), g=ctx.createGain(), f=ctx.createBiquadFilter();
+  f.type='bandpass'; f.Q.value=1.4;
+  f.frequency.setValueAtTime(220, when);
+  f.frequency.exponentialRampToValueAtTime(Math.max(240,toFreq*2), when+dur);
+  osc.type='sawtooth';
+  osc.frequency.setValueAtTime(toFreq*0.5, when);
+  osc.frequency.exponentialRampToValueAtTime(toFreq, when+dur);
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(0.030, when+dur*0.85);
+  g.gain.exponentialRampToValueAtTime(0.0001, when+dur);
+  osc.connect(g).connect(f).connect(masterIn);
+  osc.start(when); osc.stop(when+dur+0.05);
+  osc.onended=()=>{ try{osc.disconnect();g.disconnect();f.disconnect();}catch(e){} };
+}
+
+/* the theme's statement forms — the transformation toolkit, applied */
+function stateTheme(ctx, when, mode, t){
+  const v=voiceForAct(t);
+  if (mode==='fragment'){                  // opening cell only, minor
+    const beat=0.62;
+    playNote(ctx, semi(THEME[0]-3), when,            beat*0.9, v, -0.12, 0.85);
+    playNote(ctx, semi(THEME[1]-3), when+beat*0.5,   beat*1.3, v,  0.12, 0.85);
+  } else if (mode==='augment'){            // stretched, weightier, still minor
+    const beat=1.15;
+    for (let i=0;i<4;i++)
+      playNote(ctx, semi(THEME[i]-3)*0.5, when+THEME_RHY[i]*beat, beat*1.5, v, ((i%3)-1)*0.14, 0.8);
+  } else if (mode==='whole'){              // the only complete statement: MAJOR
+    const beat=0.80;
+    for (let i=0;i<THEME.length;i++)
+      playNote(ctx, semi(THEME[i]), when+THEME_RHY[i]*beat, beat*2.0, v, ((i%3)-1)*0.16, 1.0);
+    playNote(ctx, semi(THEME[0])*2, when+THEME_RHY[4]*beat, beat*3.4, v, 0, 0.55);
+  }
+}
+
+/* look-ahead scheduler (dog#E14, shadow#E1) — never setTimeout per note.
+   Cues are authored against the film's own timeline; the window is
+   re-armed from the render loop, which already has t. */
+const CUES=[
+  {t:  4.0, kind:'fragment'},
+  {t: 28.0, kind:'fragment'},
+  {t: 45.0, kind:'fragment'},
+  {t: 62.0, kind:'fragment', riser:2.2},
+  {t: 90.0, kind:'fragment', riser:2.6},
+  {t:107.0, kind:'augment',  riser:3.0},
+  {t:124.0, kind:'fragment'},
+  {t:140.0, kind:'fragment'},
+  {t:153.0, kind:'augment',  riser:2.4},
+  {t:170.0, kind:'fragment'},
+  {t:187.0, kind:'augment',  riser:3.2},
+  {t:203.6, kind:'whole',    riser:3.4},   // lands on "I stopped needing to."
+];
+const cueFired=new Array(CUES.length).fill(false);
+const LOOKAHEAD=0.35;                       // seconds of schedule horizon
+function scheduleScore(ctx, t){
+  for (let i=0;i<CUES.length;i++){
+    if (cueFired[i]) continue;
+    const c=CUES[i];
+    const lead=c.riser||0;
+    const startAt=c.t-lead;
+    if (t>=startAt-LOOKAHEAD && t<startAt+1.2){
+      cueFired[i]=true;
+      const now=ctx.currentTime + Math.max(0,(startAt-t));
+      if (lead) riser(ctx, now, lead, semi(THEME[1]));
+      stateTheme(ctx, now+lead, c.kind, c.t);
+    }
+  }
+}
+/* on a seek, re-arm against the new position: everything already passed
+   is marked fired (so scrubbing forward can't dump a pile of stacked
+   cues at once), everything ahead is re-armed so playback still scores. */
+function armScoreAt(time){
+  for (let i=0;i<CUES.length;i++){
+    const c=CUES[i];
+    cueFired[i] = time >= (c.t-(c.riser||0)) - LOOKAHEAD;
+  }
+}
 const BIG_LINES = new Set([2,6,15,18,21]);
 function updateActCard(t){
   const card = ACT_CARDS.find(c=>t>=c.t&&t<c.t+c.hold);
@@ -1065,7 +1213,7 @@ function frame(now, forced){
     if (t>=DUR){ t=DUR; playing=false; el.play.textContent="Play"; }
   }
   draw(t);
-  if (audioCtx) applyMoodAudio(t>150?mood(t):0.42);
+  if (audioCtx){ applyMoodAudio(t>150?mood(t):0.42); if (playing && !forced) scheduleScore(audioCtx, t); }
 
   const line=LINES.find(l=>t>=l.a&&t<l.b);
   const idx=line?LINES.indexOf(line):-1;
@@ -1086,6 +1234,7 @@ function frame(now, forced){
 function seek(time){
   playing=false; el.play.textContent="Play";
   t=Math.max(0,Math.min(DUR,time)); shownLine=-2;
+  armScoreAt(t);
   draw(t);
   const line=LINES.find(l=>t>=l.a&&t<l.b);
   el.narr.classList.toggle('on', !!line); if (line) el.narr.textContent=line.s;
