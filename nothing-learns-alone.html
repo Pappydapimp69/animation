@@ -37,10 +37,16 @@
     --shadow:0 10px 32px rgba(30,35,35,.18); --scrim:rgba(231,229,222,.80);
   }
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0}
+  /* 100vh sizes to the chrome-COLLAPSED mobile viewport, so anything
+     bottom-anchored falls below the fold while the address bar is showing;
+     dvh tracks the real one. vh first as the fallback for old engines.
+     (Filed lesson — and a headless browser has no collapsible chrome, so
+     this specific class of bug cannot be proven green in automation.) */
+  html,body{height:100vh;height:100dvh;margin:0}
   body{background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidden;
     -webkit-font-smoothing:antialiased}
-  canvas{display:block;width:100vw;height:100vh;touch-action:none;cursor:grab}
+  canvas{display:block;width:100vw;width:100dvw;height:100vh;height:100dvh;
+    touch-action:none;cursor:grab}
   canvas.grabbing{cursor:grabbing}
   canvas.overnode{cursor:pointer}
 
@@ -49,26 +55,37 @@
 
   /* the canvas carries no explanatory text any more — it all lives on the
      splash, which doubles as the audio gesture browsers require */
+  /* the card has to survive a short landscape phone as well as a 4K desktop:
+     scroll rather than clip, scale type with the viewport, and inset from the
+     OS safe area instead of a hand-picked pixel margin */
   .splash{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
-    background:var(--bg);transition:opacity .5s ease}
+    background:var(--bg);transition:opacity .5s ease;overflow-y:auto;
+    padding:calc(env(safe-area-inset-top,0px) + 16px) calc(env(safe-area-inset-right,0px) + 16px)
+            calc(env(safe-area-inset-bottom,0px) + 16px) calc(env(safe-area-inset-left,0px) + 16px)}
   .splash.out{opacity:0;pointer-events:none}
-  .splash .card{max-width:62ch;padding:32px 30px;text-align:left}
+  .splash .card{max-width:min(62ch,100%);width:100%;margin:auto;
+    padding:clamp(18px,3.2vw,34px) clamp(16px,3vw,32px);text-align:left}
   /* the end card sits OVER the finished map on purpose — you want to see what
      you built — so it needs its own opaque surface, not the page ground */
   #endsplash{background:var(--scrim)}
   #endsplash .card{background:var(--panel);border:1px solid var(--line);
     box-shadow:var(--shadow);max-width:56ch}
-  .splash h1{font-size:15px;font-weight:600;letter-spacing:.36em;text-transform:uppercase;margin:0}
+  .splash h1{font-size:clamp(12px,1.5vw,16px);font-weight:600;
+    letter-spacing:clamp(.16em,.36vw,.36em);text-transform:uppercase;margin:0}
   .splash .rule{height:1px;background:var(--line);margin:15px 0 14px}
-  .splash p{margin:0 0 13px;font-size:12px;line-height:1.75;color:var(--dim);text-wrap:pretty}
+  .splash p{margin:0 0 clamp(8px,1.2vh,14px);font-size:clamp(11px,1.15vw,13px);
+    line-height:1.7;color:var(--dim);text-wrap:pretty}
   .splash p b{color:var(--ink);font-weight:600}
-  .splash .small{font-size:10.5px;color:var(--faint);line-height:1.7}
+  .splash .small{font-size:clamp(9.5px,.95vw,11px);color:var(--faint);line-height:1.65}
+  /* a short viewport (landscape phone) has no room for the fine print */
+  @media (max-height:460px){ .splash .small{display:none} .splash p{line-height:1.55} }
   .actions{display:flex;gap:9px;margin-top:22px;flex-wrap:wrap}
   .actions button{padding:11px 17px;font-size:11px}
   .actions .primary{color:var(--bg);background:var(--multi);border-color:var(--multi)}
   .actions .primary:hover{filter:brightness(1.1);color:var(--bg)}
   /* in-game HUD: numbers only, no prose */
-  .hud2{position:absolute;left:22px;top:20px;display:flex;gap:20px;flex-wrap:wrap}
+  .hud2{position:absolute;left:calc(env(safe-area-inset-left,0px) + 22px);
+    top:calc(env(safe-area-inset-top,0px) + 20px);display:flex;gap:20px;flex-wrap:wrap}
   .hud2 .v{font-size:19px;font-variant-numeric:tabular-nums;color:var(--ink);line-height:1}
   .hud2 .k{margin-top:5px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
   .hud2 .combo .v{color:var(--single)}
@@ -83,7 +100,8 @@
     font-size:10px;line-height:1.7;color:var(--faint);text-wrap:pretty}
   .caveat b{color:var(--dim);font-weight:400}
 
-  .figures{position:absolute;left:22px;bottom:20px;display:flex;gap:22px;flex-wrap:wrap}
+  .figures{position:absolute;left:calc(env(safe-area-inset-left,0px) + 22px);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 20px);display:flex;gap:22px;flex-wrap:wrap}
   .fig{min-width:74px}
   .fig .v{font-size:21px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink);line-height:1}
   .fig .k{margin-top:5px;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
@@ -92,7 +110,8 @@
   /* the detail panel occupies the right edge, so the tools have to move
      out from under it rather than sit behind it — verified by a click
      that the panel intercepted */
-  .tools{position:absolute;right:20px;top:20px;display:flex;flex-direction:column;gap:7px;align-items:flex-end;
+  .tools{position:absolute;right:calc(env(safe-area-inset-right,0px) + 20px);
+    top:calc(env(safe-area-inset-top,0px) + 20px);display:flex;flex-direction:column;gap:7px;align-items:flex-end;
     transition:transform .26s cubic-bezier(.22,.61,.36,1)}
   body.panelopen .tools{transform:translateX(calc(-1 * min(430px,92vw) - 12px))}
   button{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
@@ -492,7 +511,8 @@ function startGame(){
   mode='play'; claimed.clear(); chain=0; bestChain=0; seamsClosed=0; pops.length=0;
   brain.x=startNode.x; brain.y=startNode.y; brain.r=9;
   claim(startNode,true);
-  panTarget={x:W/2-brain.x*view.k, y:H/2-brain.y*view.k};
+  panTarget=null;
+  view.x=W/2-brain.x*view.k; view.y=H/2-brain.y*view.k;
   document.getElementById('hud2').classList.remove('hide');
   document.querySelector('.figures').classList.add('hide');
   document.querySelector('.tools').classList.add('hide');
@@ -510,22 +530,32 @@ function enterExplore(){
 }
 function tickGame(dt){
   if (mode!=='play') return;
+  /* The brain is pinned to the centre of the screen and the WORLD moves
+     around it, so the pointer can no longer be an absolute world target —
+     chasing one while the camera chases the brain is a feedback loop that
+     never settles. The pointer is a direction instead: its offset from
+     screen centre gives heading, and its distance gives throttle. Speed is
+     divided by the zoom so travel feels identical in screen terms however
+     far out you are. */
   if (ptr){
-    const [wx,wy]=toWorld(ptr.x,ptr.y);
-    /* 0.16 lagged so far behind a moving pointer that a normal sweep
-       simply outran the brain and absorbed nothing */
-    brain.x += (wx-brain.x)*Math.min(1,0.30*dt);
-    brain.y += (wy-brain.y)*Math.min(1,0.30*dt);
+    const dx=ptr.x-W/2, dy=ptr.y-H/2;
+    const d=Math.hypot(dx,dy);
+    const DEAD=10;
+    if (d>DEAD){
+      const throttle=Math.min(1,(d-DEAD)/210);
+      const sp=throttle*8.4/Math.max(0.25,view.k);
+      brain.x+=dx/d*sp*dt; brain.y+=dy/d*sp*dt;
+    }
   }
   for (const n of N){
     if (claimed.has(n.id)) continue;
     if (Math.hypot(n.x-brain.x,n.y-brain.y) < brain.r + n.rad + 5) claim(n,false);
   }
   for (let i=pops.length-1;i>=0;i--){ pops[i].t+=dt*0.05; if(pops[i].t>1) pops.splice(i,1); }
-  /* keep the brain in frame without yanking the camera */
-  const sx=brain.x*view.k+view.x, sy=brain.y*view.k+view.y, m=160;
-  if (sx<m||sx>W-m||sy<m||sy>H-m)
-    panTarget={x:W/2-brain.x*view.k, y:H/2-brain.y*view.k};
+  /* hard lock: the dot is always dead centre */
+  panTarget=null;
+  view.x=W/2-brain.x*view.k;
+  view.y=H/2-brain.y*view.k;
 }
 
 /* ── view transform ──────────────────────────────────────────────────── */
@@ -736,6 +766,10 @@ cv.addEventListener('pointerdown',e=>{
   cv.classList.add('grabbing');
 });
 cv.addEventListener('pointerup',e=>{
+  /* a tap sets the heading and, with nothing clearing it, the brain kept
+     travelling in that direction forever after the finger lifted. Touch is
+     hold-to-steer; a mouse always has a position, so it keeps steering. */
+  if (e.pointerType==='touch') ptr=null;
   if (mode==='play') return;
   cv.classList.remove('grabbing');
   const n=pick(e.clientX,e.clientY);
