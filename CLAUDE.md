@@ -69,3 +69,11 @@ these, don't just read them.
 Standing consequence of (4): when something is genuinely unverified, say so in
 the same breath as shipping it. Shipping with a named gap is fine; shipping
 with an implied all-clear is not.
+
+6. **Two chat replies per work order, maximum.** Added 2026-08-05 by the owner
+   after rule (1) kept being violated inside the very sessions that agreed to
+   it — the `brief` stance was restated, committed, and then followed by
+   multi-section replies with headers. The cap is mechanical because the
+   stance alone demonstrably did not hold: do the work, report once. A
+   correction or a genuine blocker can take the second reply; there is no
+   third.
