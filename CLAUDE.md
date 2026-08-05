@@ -33,3 +33,39 @@ reconciles with main. Keep session output minimal.
   before committing to that fork.
 - Schema: memory proposals use `## FULL ENTRY` + `## PROPOSED INDEX LINE`;
   tensions/exploration use `### ` blocks. Malformed entries are held on `sync`.
+
+## Working format (agreed 2026-08-03, after a session that broke all five)
+
+Each rule below is here because it was violated, with the cost noted. Check
+these, don't just read them.
+
+1. **Run `brain stance` at session start and obey it.** It was set to `brief`
+   for an entire session while replies ran to multi-paragraph essays with
+   headers. The stance is a standing instruction, not a preference — `brain
+   stance --verbose` prints the card.
+2. **`brief-gate` is on: challenge a vague brief BEFORE planning.** A vague
+   brief got five rounds of confidently wrong work before anyone asked what it
+   meant. Ambiguous ask → one clarifying question first, not a guess plus a
+   correction cycle.
+3. **Query Brain by GENRE, not just by sub-problem.** Querying `camera`,
+   `reachability` and `analyze density` never surfaced `test.md#E10`
+   ("a chronicle is not a story"), which described the exact artifact and
+   exact failure a month earlier. Cost: four polish passes that each verified
+   green and fixed nothing. Trigger: before the SECOND fix on one artifact,
+   and whenever a complaint moves to a new surface, query the artifact's genre
+   ("story", "pacing", "audio", "score").
+4. **A claim of verification requires the artifact.** Two false claims in one
+   session: a source comment asserting "want/opposition/stakes/choice,
+   but/therefore, not a chronicle" over lines where 14 of 21 transitions were
+   "and then"; and a reported watch-through whose monitoring loop
+   (`until ! pgrep -f <name>`) matched its own command line, waited on itself
+   forever, and never ran the sweep. Rule: paste the number, the log line or
+   the measurement, or say "not verified" — and never let a comment stand in
+   for a test that was never executed.
+5. **Cognitive Update at each milestone, unprompted** — it is a standing rule
+   above and was skipped for most of a long session. Non-bugs count: reusable
+   pattern → `ideas`, unresolved fork → `tension`.
+
+Standing consequence of (4): when something is genuinely unverified, say so in
+the same breath as shipping it. Shipping with a named gap is fine; shipping
+with an implied all-clear is not.
