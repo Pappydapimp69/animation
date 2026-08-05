@@ -1,0 +1,103 @@
+<title>animation — Pappydapimp69</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{
+    --bg:#0d1012; --panel:#111517; --line:#2b3336;
+    --ink:#dbe3e2; --dim:#7f8f91; --faint:#4d5a5c;
+    --multi:#57bfa9; --single:#d9993f;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#e7e5de; --panel:#f2f0ea; --line:#c3c0b5;
+      --ink:#1c2224; --dim:#5f6b6d; --faint:#9aa3a2; --multi:#0f7d69; --single:#a2631a; }
+  }
+  :root[data-theme="dark"]{ --bg:#0d1012; --panel:#111517; --line:#2b3336;
+    --ink:#dbe3e2; --dim:#7f8f91; --faint:#4d5a5c; --multi:#57bfa9; --single:#d9993f; }
+  :root[data-theme="light"]{ --bg:#e7e5de; --panel:#f2f0ea; --line:#c3c0b5;
+    --ink:#1c2224; --dim:#5f6b6d; --faint:#9aa3a2; --multi:#0f7d69; --single:#a2631a; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);
+    -webkit-font-smoothing:antialiased;line-height:1.6}
+  .wrap{max-width:76ch;margin:0 auto;padding:64px 24px 96px}
+  h1{font-size:13px;font-weight:600;letter-spacing:.34em;text-transform:uppercase;margin:0}
+  .rule{height:1px;background:var(--line);margin:14px 0 14px}
+  .lede{font-size:12px;color:var(--dim);margin:0 0 42px;text-wrap:pretty;max-width:62ch}
+  .lede b{color:var(--ink);font-weight:600}
+
+  .grp{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);
+    margin:42px 0 4px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+  a.item{display:block;text-decoration:none;color:inherit;padding:17px 0;
+    border-bottom:1px solid var(--line)}
+  a.item:hover .t{color:var(--multi)}
+  a.item:focus-visible{outline:2px solid var(--multi);outline-offset:3px}
+  .row{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .t{font-size:14.5px;color:var(--ink);transition:color .15s}
+  .tag{font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+    border:1px solid var(--line);padding:2px 6px;color:var(--faint);white-space:nowrap}
+  .tag.snd{color:var(--single);border-color:color-mix(in srgb,var(--single) 45%,var(--line))}
+  .tag.act{color:var(--multi);border-color:color-mix(in srgb,var(--multi) 45%,var(--line))}
+  .d{margin-top:7px;font-size:11.5px;color:var(--dim);text-wrap:pretty;max-width:64ch}
+  .foot{margin-top:56px;font-size:10.5px;color:var(--faint);line-height:1.8;text-wrap:pretty}
+  .foot code{color:var(--dim)}
+</style>
+
+<div class="wrap">
+  <h1>Animation</h1>
+  <div class="rule"></div>
+  <p class="lede">Pieces built from the <b>Brain</b> corpus — 124 real projects and 568 real
+    lessons. Each opens as its own page. Where a piece has sound it begins on a tap, because
+    browsers hold audio until you ask for it.</p>
+
+  <div class="grp">Interactive</div>
+  <a class="item" href="nothing-learns-alone.html">
+    <div class="row"><span class="t">Nothing Learns Alone</span>
+      <span class="tag act">Interactive</span><span class="tag">Silent</span></div>
+    <div class="d">Every co-verification seam in the corpus: 269 of them across 124 projects.
+      72 are corroborated by two or more independent lessons; 197 rest on a single source; 28
+      projects have never been tested against anything at all. Drag, zoom, open any project,
+      and shift-click a second to trace the real chain between them.</div>
+  </a>
+
+  <div class="grp">Films</div>
+  <a class="item" href="many-small-fires.html">
+    <div class="row"><span class="t">Many Small Fires</span>
+      <span class="tag snd">Sound</span><span class="tag">210s</span></div>
+    <div class="d">The whole story, not just the last day of it — all 124 projects as a
+      corridor in real chronological order, with a leitmotif score that only completes once,
+      on the final line. Hover any light during playback to name it.</div>
+  </a>
+  <a class="item" href="still-growing.html">
+    <div class="row"><span class="t">Still Growing</span>
+      <span class="tag snd">Sound</span></div>
+    <div class="d">An earlier self-portrait: every idea and lesson filed system-wide, gathered
+      into one growing shape.</div>
+  </a>
+  <a class="item" href="lamplighter.html">
+    <div class="row"><span class="t">The Lamplighter</span>
+      <span class="tag snd">Sound</span></div>
+    <div class="d">The first of these — a 3D browser cutscene built from Brain kernels.</div>
+  </a>
+
+  <div class="grp">Experiments</div>
+  <a class="item" href="flex.html">
+    <div class="row"><span class="t">Flex</span></div>
+    <div class="d">The same real story told with more swagger.</div>
+  </a>
+  <a class="item" href="wordless-retelling.html">
+    <div class="row"><span class="t">Wordless Retelling</span></div>
+    <div class="d">The growth story with zero visible language.</div>
+  </a>
+  <a class="item" href="growth-almanac.html">
+    <div class="row"><span class="t">Growth Almanac</span></div>
+    <div class="d">The original day-by-day almanac.</div>
+  </a>
+  <a class="item" href="visual-concept-dynamic-lights.html">
+    <div class="row"><span class="t">Dynamic Lights</span><span class="tag">Concept</span></div>
+    <div class="d">A standalone lighting study, never wired into a cutscene.</div>
+  </a>
+
+  <p class="foot">Project names, dates and lesson <em>counts</em> are drawn from the live
+    corpus. The lessons' own text is held in a private repository and is not published here —
+    these pages show the structure the corpus forms, not its contents.<br>
+    Source: <code>github.com/Pappydapimp69/animation</code></p>
+</div>
