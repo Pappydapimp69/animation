@@ -430,12 +430,23 @@ function openPanel(id){
        stress-tested against any other system — they hold on their own evidence alone.</div>`;
   }
 
-  const ls=LESSONS[id]||[];
-  document.getElementById('p-lessonlist').innerHTML = ls.length
-    ? ls.map(l=>`<div class="lesson"><div class="lt">${esc(l.t)}</div>`
+  /* Two builds share this file. The full build embeds each lesson's title,
+     tags and rule of thumb; the public build embeds only a per-project
+     COUNT, because the corpus those lessons come from is private. Detect
+     which payload is present rather than maintaining two templates. */
+  const ls=LESSONS[id];
+  const lbox=document.getElementById('p-lessonlist');
+  if (Array.isArray(ls) && ls.length){
+    lbox.innerHTML = ls.map(l=>`<div class="lesson"><div class="lt">${esc(l.t)}</div>`
         +(l.g.length?`<div class="lg">${l.g.map(t=>'['+esc(t)+']').join(' ')}</div>`:'')
-        +(l.r?`<div class="lr">${esc(l.r)}</div>`:'')+`</div>`).join('')
-    : `<div class="empty">No lesson bodies recorded.</div>`;
+        +(l.r?`<div class="lr">${esc(l.r)}</div>`:'')+`</div>`).join('');
+  } else if (typeof ls==='number' && ls>0){
+    lbox.innerHTML=`<div class="empty"><b>${ls}</b> lesson${ls===1?'':'s'} recorded.
+      Their text is held in a private repository and is not published here — this
+      drawing shows the structure they form, not their contents.</div>`;
+  } else {
+    lbox.innerHTML=`<div class="empty">No lessons recorded.</div>`;
+  }
   document.querySelector('.panel .body').scrollTop=0;
   panel.classList.add('on');
   document.body.classList.add('panelopen');
