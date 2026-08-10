@@ -19,11 +19,19 @@
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--ink)}
   body{font-family:var(--serif);line-height:1.6;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:74ch;margin:0 auto;padding:clamp(20px,4vw,56px) clamp(16px,4vw,28px) 96px}
+  .wrap{max-width:min(2560px,100%);margin:0 auto;
+    padding:clamp(18px,3vw,40px) clamp(16px,3.5vw,44px) 96px}
+  /* the tally is position:fixed, so the wrap under it needs its height back */
+  .tally:not(.hidden)+.wrap{padding-top:calc(clamp(18px,3vw,40px) + 44px)}
+  /* one gutter value, shared by every wide-screen column split */
+  :root{ --gut:clamp(32px,4vw,72px) }
+  /* the band between a phone and the two-column layout: a full-bleed single
+     column here would run ~96 characters, so narrow it instead */
+  @media (min-width:620px) and (max-width:799px){ .wrap,.tally .in{max-width:648px} }
 
   .kicker{font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--faint)}
-  h1{font-size:clamp(24px,5vw,40px);line-height:1.14;margin:12px 0 0;font-weight:600;text-wrap:balance}
-  .lede{font-size:clamp(15px,1.7vw,17px);color:var(--dim);margin:18px 0 0;text-wrap:pretty}
+  h1{font-size:clamp(26px,4.2vw,72px);line-height:1.14;margin:12px 0 0;font-weight:600;text-wrap:balance}
+  .lede{font-size:clamp(16px,1.45vw,28px);color:var(--dim);margin:18px 0 0;text-wrap:pretty}
   .lede b{color:var(--ink);font-weight:600}
   .rule{height:1px;background:var(--line);margin:26px 0}
 
@@ -41,14 +49,15 @@
     font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
   .meta .proj{color:var(--ink);letter-spacing:.06em}
   .tags{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.04em;margin-top:8px}
-  .setup{margin-top:20px;font-size:clamp(15px,1.75vw,17.5px);text-wrap:pretty}
-  .setup .lab{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;
+  .setup{margin-top:22px;font-size:clamp(16.5px,1.45vw,30px);text-wrap:pretty}
+  .setup .lab{display:block;font-family:var(--mono);font-size:clamp(9.5px,.8vw,15px);letter-spacing:.2em;
     text-transform:uppercase;color:var(--faint);margin:20px 0 7px}
-  .q{margin-top:30px;font-family:var(--mono);font-size:11px;letter-spacing:.18em;
+  .q{margin-top:34px;font-family:var(--mono);font-size:clamp(11px,.95vw,18px);letter-spacing:.18em;
     text-transform:uppercase;color:var(--dim)}
   .opts{margin-top:12px;display:flex;flex-direction:column;gap:9px}
-  .opt{text-align:left;font-family:var(--serif);font-size:15px;line-height:1.55;color:var(--ink);
-    background:var(--card);border:1px solid var(--line);padding:15px 17px;transition:border-color .15s,background .15s}
+  .opt{text-align:left;font-family:var(--serif);font-size:clamp(15.5px,1.3vw,27px);line-height:1.5;
+    color:var(--ink);background:var(--card);border:1px solid var(--line);
+    padding:clamp(14px,1.3vw,20px) clamp(15px,1.5vw,24px);transition:border-color .15s,background .15s}
   .opt:hover:not(:disabled){border-color:var(--line2);background:var(--card2)}
   .opt:disabled{cursor:default}
   .opt.is-right{border-color:var(--right);background:color-mix(in srgb,var(--right) 12%,var(--card))}
@@ -63,32 +72,63 @@
   @media (prefers-reduced-motion:reduce){ .reveal{animation:none} }
   .verdict{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase}
   .verdict.ok{color:var(--right)} .verdict.no{color:var(--wrong)}
-  .reveal h3{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+  .reveal h3{font-family:var(--mono);font-size:clamp(9.5px,.8vw,15px);letter-spacing:.2em;text-transform:uppercase;
     color:var(--faint);margin:22px 0 7px;font-weight:400}
-  .reveal p{margin:0;font-size:15.5px;text-wrap:pretty}
-  .lawbox{margin-top:22px;background:var(--card);border-left:2px solid var(--right);padding:16px 18px}
-  .lawbox p{font-size:15.5px}
+  .reveal p{margin:0;font-size:clamp(16px,1.35vw,28px);text-wrap:pretty}
+  .lawbox{margin-top:24px;background:var(--card);border-left:3px solid var(--right);
+    padding:clamp(16px,1.5vw,24px) clamp(18px,1.8vw,28px)}
+  .lawbox p{font-size:clamp(16.5px,1.4vw,30px)}
 
   .tally{position:fixed;top:0;left:0;right:0;background:var(--bg);border-bottom:1px solid var(--line);
-    z-index:5;padding:10px clamp(16px,4vw,28px)}
-  .tally .in{max-width:74ch;margin:0 auto;display:flex;gap:18px;align-items:center;
+    z-index:5;padding:10px clamp(16px,3.5vw,44px)}
+  .tally .in{max-width:min(2560px,100%);margin:0 auto;display:flex;gap:18px;align-items:center;
     font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
   .tally b{color:var(--ink);font-variant-numeric:tabular-nums}
   .tally .bar{flex:1;height:2px;background:var(--line);position:relative;min-width:60px}
   .tally .bar i{position:absolute;inset:0 auto 0 0;background:var(--right);transition:width .3s}
   .hidden{display:none}
   .prof{margin-top:8px}
-  .prof .r{display:flex;gap:12px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line);
-    font-family:var(--mono);font-size:12px}
+  .prof .r{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line);
+    font-family:var(--mono);font-size:clamp(12px,1.05vw,20px)}
   .prof .r .n{flex:1;color:var(--ink);letter-spacing:.06em}
   .prof .r .v{color:var(--dim);font-variant-numeric:tabular-nums}
-  .prof .r .m{width:84px;height:3px;background:var(--line);position:relative}
+  .prof .r .m{width:clamp(84px,14vw,240px);height:3px;background:var(--line);position:relative}
   .prof .r .m i{position:absolute;inset:0 auto 0 0;background:var(--right)}
   .missed{margin-top:10px}
   .missed .m{border-left:2px solid var(--wrong);padding:10px 14px;margin:10px 0;background:var(--card)}
   .missed .m .h{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
-  .missed .m p{margin:6px 0 0;font-size:14.5px}
+  .missed .m p{margin:6px 0 0;font-size:clamp(15px,1.25vw,26px)}
   footer{margin-top:44px;font-family:var(--mono);font-size:10px;color:var(--faint);line-height:1.8}
+
+  /* ── wide screens: fill the width with COLUMNS, not with longer lines ──
+     Stretching one measure to 2560px reads worse, not better; splitting the
+     case into "the reasoning" | "the choices" fills the screen edge to edge
+     and keeps every line near 80 characters. */
+  .ledes{display:grid;gap:18px}
+  .rvcols{display:grid;gap:22px}
+  @media (min-width:800px){
+    .ledes{grid-template-columns:repeat(3,minmax(0,1fr));column-gap:var(--gut)}
+    .ledes .lede{margin-top:0}
+
+    #case:not(.hidden){display:grid;align-content:start;
+      grid-template-columns:minmax(0,1.04fr) minmax(0,1fr);
+      column-gap:var(--gut);
+      grid-template-rows:auto auto 1fr auto;
+      grid-template-areas:"meta q" "tags opts" "setup opts" "rev rev"}
+    #case>.meta {grid-area:meta}
+    #case>.tags {grid-area:tags}
+    #case>.setup{grid-area:setup;margin-top:14px}
+    #case>.q    {grid-area:q;margin-top:0}
+    #case>.opts {grid-area:opts;margin-top:14px;align-self:start}
+    #case>#c-reveal{grid-area:rev}
+
+    .rvcols{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);column-gap:var(--gut)}
+    .rvcols .lawbox{margin-top:0}
+
+    #r-missedwrap{columns:2;column-gap:var(--gut)}
+    #r-missedwrap>.kicker{column-span:all}
+    #r-missedwrap .m{break-inside:avoid}
+  }
 </style>
 
 <div class="tally hidden" id="tally"><div class="in">
@@ -103,6 +143,7 @@
   <section id="intro">
     <div class="kicker">A diagnostic deck · 489 real cases</div>
     <h1>It seemed right at the time</h1>
+    <div class="ledes">
     <p class="lede">Every case here is a real thing that was really built, and really broke.
       You get the reasoning that justified it — the honest, sensible case for the decision,
       written before anyone knew — and the parts that were genuinely correct.
@@ -111,6 +152,7 @@
       invented: each is a real failure from a different project in the same domain. They are
       all things that have actually happened. Only one of them happened <em>here</em>.</p>
     <p class="lede">Twelve cases. The deck watches which domains you misjudge and digs in there.</p>
+    </div>
     <div class="row">
       <button class="btn" id="b-start">Open the first case</button>
       <button class="btn ghost" id="b-theme2">Theme</button>
@@ -241,11 +283,14 @@ function answer(o,btn,c){
   $('c-reveal').innerHTML =
     '<div class="reveal">'
     + '<div class="verdict '+(ok?'ok':'no')+'">'+(ok?'You saw it coming':'That is not where it broke')+'</div>'
-    + '<h3>What was actually built</h3><p>'+esc(c.w)+'</p>'
-    + '<h3>The fix</h3><p>'+esc(c.x)+'</p>'
-    + '<div class="lawbox"><h3 style="margin-top:0">The rule it produced</h3><p>'+esc(c.l)+'</p></div>'
-    + '<div class="row"><button class="btn" id="b-next">'
-      + (idx+1>=RUN?'See the diagnosis':'Next case') + '</button></div>'
+    + '<div class="rvcols"><div>'
+    +   '<h3>What was actually built</h3><p>'+esc(c.w)+'</p>'
+    +   '<h3>The fix</h3><p>'+esc(c.x)+'</p>'
+    + '</div><div>'
+    +   '<div class="lawbox"><h3 style="margin-top:0">The rule it produced</h3><p>'+esc(c.l)+'</p></div>'
+    +   '<div class="row"><button class="btn" id="b-next">'
+    +   (idx+1>=RUN?'See the diagnosis':'Next case') + '</button></div>'
+    + '</div></div>'
     + '</div>';
   $('b-next').addEventListener('click',next);
   $('b-next').focus({preventScroll:true});
