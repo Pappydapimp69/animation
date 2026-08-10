@@ -538,7 +538,17 @@ const VERIFIABLE=N.filter(n=>n.deg>0).length;
    whichever ran last was silently overwriting the other, so a whole mechanic
    could go unannounced for an entire run */
 const annQ=[]; let announce=null, announceT=99;
-function say(a){ if (annQ.length<4) annQ.push(a); }
+function say(a){
+  /* a boost is rare and teaches a mechanic; a verification is common. With a
+     flat cap the common one starved the rare one out — OVERCLOCK went
+     unannounced for a whole run purely by queue contention — so a boost may
+     evict a queued verification to get in. */
+  if (annQ.length<4){ annQ.push(a); return; }
+  if (a.kind==='boost'){
+    const i=annQ.findIndex(x=>x.kind!=='boost');
+    if (i>=0){ annQ.splice(i,1); annQ.push(a); }
+  }
+}
 function edgeBetweenRaw(a,b){ return E.find(e=>(e.a===a&&e.b===b)||(e.a===b&&e.b===a)); }
 let brain={x:0,y:0,r:9}, started=false;
 const STICK_DEAD=8, STICK_RANGE=110;
@@ -563,6 +573,8 @@ function claim(n,silent){
     if (!claimed.has(o)) continue;
     const e=edgeBetweenRaw(n.id,o);
     if (e){ unlocked.push({a:n.id,b:o,w:e.w,safe:e.s});
+      if (!silent){ const nb=byId.get(o);
+        if (nb) pulses.push({ax:n.x,ay:n.y,bx:nb.x,by:nb.y,w:e.w,t:0}); }
       charge=Math.min(maxCharge, charge + e.w*REFUND*(resT>0?2:1));
       if (e.w>=3 && !silent && resT<=0){ resT=RES_TIME; say({id:'RESONANCE',kind:'boost',sub:'seams pay double while it lasts'}); sfxBoost(); } }
   }
@@ -598,7 +610,7 @@ function claim(n,silent){
 function prettyName(id){
   return id.replace(/^sandbox-combined-/,'').replace(/^sandbox-/,'').replace(/^the-game-/,'');
 }
-const pops=[];
+const pops=[], pulses=[];
 /* Information appears WHEN something happens and then leaves, rather than
    sitting on screen permanently: the level is wordless at rest, and every
    absorption announces itself for about a second and a half. */
@@ -640,10 +652,14 @@ function finish(ranDry){
 /* fit the play view to the real screen: scale off the SHORTER axis, since
    height alone is a landscape-only assumption and over-zooms on a portrait
    phone. Recomputed on resize so a rotation or window change re-fits. */
-function playZoom(){ return Math.max(0.5, Math.min(1.25, Math.min(W,H)/850)); }
+/* A closer view: at the old scale the whole corpus was on screen but a node
+   was a few pixels and the stick moved you across three of them at once.
+   Drain is per world-unit, so the balance is untouched — what changes is how
+   finely you can steer, and how much can be shown around each node. */
+function playZoom(){ return Math.max(1.05, Math.min(2.4, Math.min(W,H)/430)); }
 function startGame(){
   mode='play'; view.k=playZoom(); claimed.clear(); chain=0; bestChain=0; seamsClosed=0; pops.length=0;
-  maxCharge=100; charge=maxCharge; dead=false; travelled=0; caps=0; ocT=0; resT=0;
+  pulses.length=0; maxCharge=100; charge=maxCharge; dead=false; travelled=0; caps=0; ocT=0; resT=0;
   verified.clear(); unlocked.length=0; announceT=99; announce=null; annQ.length=0;
   brain.x=startNode.x; brain.y=startNode.y; brain.r=9;
   claim(startNode,true);
@@ -701,6 +717,7 @@ function tickGame(dt){
     if (Math.hypot(n.x-brain.x,n.y-brain.y) < brain.r + n.rad + 5) claim(n,false);
   }
   for (let i=pops.length-1;i>=0;i--){ pops[i].t+=dt*0.032; if(pops[i].t>1) pops.splice(i,1); }
+  for (let i=pulses.length-1;i>=0;i--){ pulses[i].t+=dt*0.045; if(pulses[i].t>1) pulses.splice(i,1); }
   flash+=dt*0.011; announceT+=dt*0.010;
   if ((!announce || announceT>=1) && annQ.length){ announce=annQ.shift(); announceT=0; }
   if (ocT>0) ocT-=dt*0.0021;  if (resT>0) resT-=dt*0.0021;
@@ -1046,7 +1063,7 @@ function draw(){
   for (const n of N){
     if (n.alone&&!showAlone) continue;
     const [x,y]=toScreen(n);
-    const r=Math.max(2.2,n.rad*Math.min(1.9,Math.max(.5,view.k)));
+    const r=Math.max(2.2,n.rad*Math.min(3.0,Math.max(.5,view.k)));
     const isHot = hoverId===n.id || inPath.has(n.id);
     const isNbr = nbrSet && nbrSet.has(n.id);
     let dim = hoverId ? (isHot||isNbr?1:0.24) : 1;
@@ -1056,6 +1073,26 @@ function draw(){
     if (mode==='play' && !has){
       ctx.strokeStyle=rgba(P.faint,0.5); ctx.lineWidth=1;
       ctx.beginPath(); ctx.arc(x,y,Math.max(2,r*0.72),0,7); ctx.stroke();
+      /* close range earns detail: what this node would close RIGHT NOW, so a
+         route is something you read rather than guess */
+      const near=Math.hypot(n.x-brain.x,n.y-brain.y);
+      if (near<230){
+        let gain=0; for (const q of adj.get(n.id)||[]) if (claimed.has(q.o)) gain+=q.w;
+        const fadeN=1-near/230;
+        if (gain>0){
+          ctx.strokeStyle=rgba(P.multi,0.85*fadeN); ctx.lineWidth=2;
+          ctx.beginPath(); ctx.arc(x,y,r+6,-Math.PI/2,-Math.PI/2+Math.min(1,gain/8)*Math.PI*2);
+          ctx.stroke();
+          ctx.font='600 11px ui-monospace,SFMono-Regular,Menlo,monospace';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillStyle=rgba(P.multi,fadeN);
+          ctx.fillText('+'+gain, x, y-r-14);
+        } else if (n.alone){
+          ctx.strokeStyle=rgba(P.single,0.55*fadeN); ctx.lineWidth=1.2;
+          ctx.beginPath(); ctx.moveTo(x-r-4,y-r-4); ctx.lineTo(x+r+4,y+r+4); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x+r+4,y-r-4); ctx.lineTo(x-r-4,y+r+4); ctx.stroke();
+        }
+      }
       continue;
     }
     if (n.alone){
@@ -1110,15 +1147,27 @@ function draw(){
       const [px,py]=toScreen({x:q.x,y:q.y});
       const fade=Math.min(1,(1-q.t)*1.6);
       const rise=q.t*20;
+      const clear=brain.r*Math.min(3.0,Math.max(.5,view.k))+26;
       ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.font='600 12.5px ui-monospace,SFMono-Regular,Menlo,monospace';
       ctx.fillStyle=rgba(P.ink,fade);
-      ctx.fillText(prettyName(q.id), px, py-30-rise);
+      ctx.fillText(prettyName(q.id), px, py-clear-16-rise);
       ctx.font='400 10.5px ui-monospace,SFMono-Regular,Menlo,monospace';
       const sub = q.n ? '+'+q.n+' seam'+(q.n===1?'':'s')
                       : (q.alone? 'connects to nothing' : 'no seam yet');
       ctx.fillStyle=rgba(q.n?P.multi:P.single,fade*0.95);
-      ctx.fillText(sub, px, py-16-rise);
+      ctx.fillText(sub, px, py-clear-rise);
+    }
+    /* the connection itself animates: a pulse runs the seam as it closes */
+    for (const q of pulses){
+      const [ax,ay]=toScreen({x:q.ax,y:q.ay}), [bxp,byp]=toScreen({x:q.bx,y:q.by});
+      const e2=q.t<0.5?2*q.t*q.t:1-Math.pow(-2*q.t+2,2)/2;
+      const px=ax+(bxp-ax)*e2, py=ay+(byp-ay)*e2;
+      ctx.strokeStyle=rgba(q.w>=2?P.multi:P.single,(1-q.t)*0.55);
+      ctx.lineWidth=1+Math.min(3,q.w*0.7);
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(px,py); ctx.stroke();
+      ctx.fillStyle=rgba(q.w>=2?P.multi:P.single,1-q.t);
+      ctx.beginPath(); ctx.arc(px,py,3+Math.min(3,q.w*0.6),0,7); ctx.fill();
     }
     if (stick && mode==='play'){
       const R=cv.getBoundingClientRect();
@@ -1182,7 +1231,7 @@ function draw(){
       ctx.fillText(verified.size+'/'+VERIFIABLE+' projects verified', L, T+(chain>1?116:98));
     }
     const [bx2,by2]=toScreen(brain);
-    const br=brain.r*Math.min(1.9,Math.max(.5,view.k));
+    const br=brain.r*Math.min(3.0,Math.max(.5,view.k));
     ctx.save(); ctx.globalCompositeOperation='lighter';
     ctx.fillStyle=rgba(P.multi,0.16);
     ctx.beginPath(); ctx.arc(bx2,by2,br*2.5,0,7); ctx.fill(); ctx.restore();
