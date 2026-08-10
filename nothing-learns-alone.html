@@ -55,7 +55,13 @@
   canvas.grabbing{cursor:grabbing}
   canvas.overnode{cursor:pointer}
 
-  .hud{position:fixed;inset:0;pointer-events:none;z-index:2}
+  /* The fixed-position containing block does not always equal the box the
+     user can actually see: on a device the overlay layer measured 696x1429
+     while the visible canvas was 360x740, so the tools sat past the right
+     edge and the figures below the bottom. Every overlay is now pinned to
+     the canvas's own measured rect, published by onResize(). */
+  .hud{position:fixed;left:var(--appx,0px);top:var(--appy,0px);
+    width:var(--appw,100%);height:var(--apph,100%);pointer-events:none;z-index:2}
   .hud > *{pointer-events:auto}
 
   /* the canvas carries no explanatory text any more — it all lives on the
@@ -63,7 +69,9 @@
   /* the card has to survive a short landscape phone as well as a 4K desktop:
      scroll rather than clip, scale type with the viewport, and inset from the
      OS safe area instead of a hand-picked pixel margin */
-  .splash{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
+  .splash{position:fixed;left:var(--appx,0px);top:var(--appy,0px);
+    width:var(--appw,100%);height:var(--apph,100%);
+    z-index:10;display:flex;align-items:center;justify-content:center;
     background:var(--bg);transition:opacity .5s ease;overflow-y:auto;
     padding:calc(env(safe-area-inset-top,0px) + 16px) calc(env(safe-area-inset-right,0px) + 16px)
             calc(env(safe-area-inset-bottom,0px) + 16px) calc(env(safe-area-inset-left,0px) + 16px)}
@@ -71,7 +79,7 @@
   /* bound to real viewport units, not a parent percentage — under mobile
      emulation the fixed-position parent and the layout viewport disagreed,
      and a % width let the card exceed the screen it was sitting on */
-  .splash .card{max-width:min(62ch,calc(100vw - 32px));width:100%;margin:auto;
+  .splash .card{max-width:min(62ch,calc(var(--appw,100vw) - 32px));width:100%;margin:auto;
     padding:clamp(18px,3.2vw,34px) clamp(16px,3vw,32px);text-align:left}
   /* the end card sits OVER the finished map on purpose — you want to see what
      you built — so it needs its own opaque surface, not the page ground */
@@ -121,7 +129,7 @@
   .tools{position:absolute;right:calc(env(safe-area-inset-right,0px) + 20px);
     top:calc(env(safe-area-inset-top,0px) + 20px);display:flex;flex-direction:column;gap:7px;align-items:flex-end;
     transition:transform .26s cubic-bezier(.22,.61,.36,1)}
-  body.panelopen .tools{transform:translateX(calc(-1 * min(430px,92vw) - 12px))}
+  body.panelopen .tools{transform:translateX(calc(-1 * min(430px,var(--appw,100vw)) - 12px))}
   button{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
     color:var(--dim);background:transparent;border:1px solid var(--line);padding:7px 11px;
     cursor:pointer;transition:color .15s,border-color .15s,background .15s}
@@ -145,7 +153,9 @@
   .trace .arrow{color:var(--multi);padding:0 5px}
 
   /* detail panel */
-  .panel{position:absolute;right:0;top:0;height:100%;width:min(430px,92vw);
+  .panel{position:fixed;left:var(--appx,0px);top:var(--appy,0px);
+    height:var(--apph,100%);width:min(430px,var(--appw,100vw));
+    margin-left:calc(var(--appw,100vw) - min(430px,var(--appw,100vw)));
     background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow);
     transform:translateX(101%);transition:transform .26s cubic-bezier(.22,.61,.36,1);
     display:flex;flex-direction:column;z-index:3}
@@ -609,6 +619,9 @@ function resize(){
   W=Math.max(1,Math.round(R.width)); H=Math.max(1,Math.round(R.height));
   cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
   ctx.setTransform(DPR,0,0,DPR,0,0);
+  const st=document.documentElement.style;
+  st.setProperty('--appx',R.left+'px'); st.setProperty('--appy',R.top+'px');
+  st.setProperty('--appw',W+'px');      st.setProperty('--apph',H+'px');
 }
 function onResize(){
   resize();
