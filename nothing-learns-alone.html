@@ -479,7 +479,8 @@ function sfxWin(){
 let mode='splash';
 const claimed=new Set();
 let chain=0, bestChain=0, seamsClosed=0;
-let brain={x:0,y:0,r:9}, ptr=null, started=false;
+let brain={x:0,y:0,r:9}, started=false;
+const STICK_DEAD=8, STICK_RANGE=110;
 /* Start at the chronologically FIRST project that is actually part of the
    structure. The literal first (pocketzane) has no seams at all, so opening
    there stranded the player on the outer band with nothing to connect to and
@@ -566,17 +567,11 @@ function tickGame(dt){
      screen centre gives heading, and its distance gives throttle. Speed is
      divided by the zoom so travel feels identical in screen terms however
      far out you are. */
-  if (ptr){
-    /* centre measured from the canvas box rather than assumed to be
-       innerWidth/2 — the visual viewport and the element box do not always
-       agree (mobile chrome, dvh), and a heading computed from the wrong
-       origin drifts the whole control scheme off-axis */
-    const R=cv.getBoundingClientRect();
-    const dx=ptr.x-(R.left+R.width/2), dy=ptr.y-(R.top+R.height/2);
+  if (stick){
+    const dx=stick.x-stick.ox, dy=stick.y-stick.oy;
     const d=Math.hypot(dx,dy);
-    const DEAD=10;
-    if (d>DEAD){
-      const throttle=Math.min(1,(d-DEAD)/210);
+    if (d>STICK_DEAD){
+      const throttle=Math.min(1,(d-STICK_DEAD)/STICK_RANGE);
       const sp=throttle*8.4/Math.max(0.25,view.k);
       brain.x+=dx/d*sp*dt; brain.y+=dy/d*sp*dt;
     }
@@ -789,9 +784,14 @@ function pick(sx,sy){
   }
   return best;
 }
+/* Floating stick: the origin is wherever the press lands, not the middle of
+   the screen and not the thing being steered. Press anywhere, and the vector
+   from that point to the current finger/cursor is the heading and throttle.
+   Anchoring to screen centre meant a thumb near the bottom of a phone could
+   only ever push the body upward. */
+let stick=null;   // {ox,oy,x,y} in client coords
 cv.addEventListener('pointermove',e=>{
-  ptr={x:e.clientX,y:e.clientY};
-  if (mode==='play') return;
+  if (mode==='play'){ if (stick){ stick.x=e.clientX; stick.y=e.clientY; } return; }
   if (drag){
     moved=true;
     if (dragNode){
@@ -808,8 +808,11 @@ cv.addEventListener('pointermove',e=>{
   cv.classList.toggle('overnode',!!hover);
 });
 cv.addEventListener('pointerdown',e=>{
-  ptr={x:e.clientX,y:e.clientY};
-  if (mode==='play'){ return; }
+  if (mode==='play'){
+    try{ cv.setPointerCapture(e.pointerId); }catch(err){}
+    stick={ox:e.clientX,oy:e.clientY,x:e.clientX,y:e.clientY};
+    return;
+  }
   cv.setPointerCapture(e.pointerId);
   moved=false;
   const n=pick(e.clientX,e.clientY);
@@ -818,11 +821,9 @@ cv.addEventListener('pointerdown',e=>{
   cv.classList.add('grabbing');
 });
 cv.addEventListener('pointerup',e=>{
-  /* a tap sets the heading and, with nothing clearing it, the brain kept
-     travelling in that direction forever after the finger lifted. Touch is
-     hold-to-steer; a mouse always has a position, so it keeps steering. */
-  if (e.pointerType==='touch') ptr=null;
-  if (mode==='play') return;
+  /* releasing always stops the body — for mouse as well as touch, since the
+     stick only exists while something is held down */
+  if (mode==='play'){ stick=null; return; }
   cv.classList.remove('grabbing');
   const n=pick(e.clientX,e.clientY);
   if (dragNode){ dragNode.pinned=false; }
@@ -967,6 +968,22 @@ function draw(){
       ctx.strokeStyle=rgba(q.n?P.multi:P.single,(1-q.t)*0.75);
       ctx.lineWidth=1.6; ctx.beginPath(); ctx.arc(px,py,rr,0,7); ctx.stroke();
     }
+    if (stick && mode==='play'){
+      const R=cv.getBoundingClientRect();
+      const ox=stick.ox-R.left, oy=stick.oy-R.top;
+      const dx=stick.x-stick.ox, dy=stick.y-stick.oy;
+      const d=Math.hypot(dx,dy)||0.0001;
+      const k=Math.min(1,d/STICK_RANGE);
+      ctx.strokeStyle=rgba(P.dim,0.30); ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.arc(ox,oy,STICK_RANGE,0,7); ctx.stroke();
+      ctx.strokeStyle=rgba(P.dim,0.22);
+      ctx.beginPath(); ctx.arc(ox,oy,STICK_DEAD+3,0,7); ctx.stroke();
+      const hx=ox+dx/d*STICK_RANGE*k, hy=oy+dy/d*STICK_RANGE*k;
+      ctx.strokeStyle=rgba(P.multi,0.5); ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(hx,hy); ctx.stroke();
+      ctx.fillStyle=rgba(P.multi,0.72);
+      ctx.beginPath(); ctx.arc(hx,hy,9,0,7); ctx.fill();
+    }
     const [bx2,by2]=toScreen(brain);
     const br=brain.r*Math.min(1.9,Math.max(.5,view.k));
     ctx.save(); ctx.globalCompositeOperation='lighter';
@@ -1026,7 +1043,7 @@ frame();
    state, and guessing at why the brain was not absorbing anything cost a
    full playtest run. Read-only. */
 window.__game={ get mode(){return mode}, get claimed(){return claimed.size},
-  get brain(){return {x:brain.x,y:brain.y,r:brain.r}}, get ptr(){return ptr},
+  get brain(){return {x:brain.x,y:brain.y,r:brain.r}}, get stick(){return stick&&{...stick}},
   get seams(){return seamsClosed}, get view(){return {x:view.x,y:view.y,k:view.k}},
   get nodes(){return N.map(n=>({id:n.id,x:n.x,y:n.y,r:n.rad,c:claimed.has(n.id),alone:n.alone}))},
   get start(){return startNode.id} };
