@@ -550,7 +550,9 @@ function say(a){
   }
 }
 function edgeBetweenRaw(a,b){ return E.find(e=>(e.a===a&&e.b===b)||(e.a===b&&e.b===a)); }
-let brain={x:0,y:0,r:9}, started=false;
+let brain={x:0,y:0,r:2.9}, started=false;
+const PLAY_R=0.30;                       // draw+collide scale for the close view
+const nodeR=n=> (mode==='play'? n.rad*PLAY_R : n.rad);
 const STICK_DEAD=8, STICK_RANGE=110;
 /* Start at the chronologically FIRST project that is actually part of the
    structure. The literal first (pocketzane) has no seams at all, so opening
@@ -593,7 +595,7 @@ function claim(n,silent){
   if (adjacent){ chain++; bestChain=Math.max(bestChain,chain);
     if (chain%5===0 && !silent){ ocT=OC_TIME; say({id:'OVERCLOCK',kind:'boost',sub:'faster ground for less charge — but you will overshoot'}); sfxBoost(); } }
   else { if (chain>0 && !silent) sfxBreak(); chain = 0; }
-  brain.r = 9 + Math.sqrt(claimed.size)*1.5;
+  brain.r = 2.9 + Math.sqrt(claimed.size)*0.42;
   if (!silent){
     const pan=Math.max(-1,Math.min(1,(n.x-brain.x)/300));
     sfxAbsorb(chain,pan);
@@ -656,7 +658,10 @@ function finish(ranDry){
    was a few pixels and the stick moved you across three of them at once.
    Drain is per world-unit, so the balance is untouched — what changes is how
    finely you can steer, and how much can be shown around each node. */
-function playZoom(){ return Math.max(1.05, Math.min(2.4, Math.min(W,H)/430)); }
+/* Ten times closer. At this scale you see roughly 5% of the corpus width, so
+   the view alone cannot tell you where anything is — off-screen bearings
+   (drawn below) carry navigation, and the close view carries detail. */
+function playZoom(){ return Math.max(9, Math.min(22, Math.min(W,H)/43)); }
 function startGame(){
   mode='play'; view.k=playZoom(); claimed.clear(); chain=0; bestChain=0; seamsClosed=0; pops.length=0;
   pulses.length=0; maxCharge=100; charge=maxCharge; dead=false; travelled=0; caps=0; ocT=0; resT=0;
@@ -700,7 +705,7 @@ function tickGame(dt){
     const d=Math.hypot(dx,dy);
     if (d>STICK_DEAD && !dead){
       const throttle=Math.min(1,(d-STICK_DEAD)/STICK_RANGE);
-      const sp=throttle*8.4*(ocT>0?1.75:1)/Math.max(0.25,view.k);
+      const sp=throttle*14*(ocT>0?1.75:1)/Math.max(0.25,view.k);
       const mx=dx/d*sp*dt, my=dy/d*sp*dt;
       brain.x+=mx; brain.y+=my;
       const moved=Math.hypot(mx,my);
@@ -714,7 +719,7 @@ function tickGame(dt){
   }
   for (const n of N){
     if (claimed.has(n.id)) continue;
-    if (Math.hypot(n.x-brain.x,n.y-brain.y) < brain.r + n.rad + 5) claim(n,false);
+    if (Math.hypot(n.x-brain.x,n.y-brain.y) < brain.r + n.rad*PLAY_R + 1.6) claim(n,false);
   }
   for (let i=pops.length-1;i>=0;i--){ pops[i].t+=dt*0.032; if(pops[i].t>1) pops.splice(i,1); }
   for (let i=pulses.length-1;i>=0;i--){ pulses[i].t+=dt*0.045; if(pulses[i].t>1) pulses.splice(i,1); }
@@ -1063,7 +1068,7 @@ function draw(){
   for (const n of N){
     if (n.alone&&!showAlone) continue;
     const [x,y]=toScreen(n);
-    const r=Math.max(2.2,n.rad*Math.min(3.0,Math.max(.5,view.k)));
+    const r=Math.max(2.2,nodeR(n)*Math.min(7.0,Math.max(.5,view.k)));
     const isHot = hoverId===n.id || inPath.has(n.id);
     const isNbr = nbrSet && nbrSet.has(n.id);
     let dim = hoverId ? (isHot||isNbr?1:0.24) : 1;
@@ -1076,9 +1081,10 @@ function draw(){
       /* close range earns detail: what this node would close RIGHT NOW, so a
          route is something you read rather than guess */
       const near=Math.hypot(n.x-brain.x,n.y-brain.y);
-      if (near<230){
+      const PREV=Math.max(60, Math.min(230, (Math.min(W,H)/view.k)*0.75));
+      if (near<PREV){
         let gain=0; for (const q of adj.get(n.id)||[]) if (claimed.has(q.o)) gain+=q.w;
-        const fadeN=1-near/230;
+        const fadeN=1-near/PREV;
         if (gain>0){
           ctx.strokeStyle=rgba(P.multi,0.85*fadeN); ctx.lineWidth=2;
           ctx.beginPath(); ctx.arc(x,y,r+6,-Math.PI/2,-Math.PI/2+Math.min(1,gain/8)*Math.PI*2);
@@ -1147,7 +1153,7 @@ function draw(){
       const [px,py]=toScreen({x:q.x,y:q.y});
       const fade=Math.min(1,(1-q.t)*1.6);
       const rise=q.t*20;
-      const clear=brain.r*Math.min(3.0,Math.max(.5,view.k))+26;
+      const clear=brain.r*Math.min(7.0,Math.max(.5,view.k))+34;
       ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.font='600 12.5px ui-monospace,SFMono-Regular,Menlo,monospace';
       ctx.fillStyle=rgba(P.ink,fade);
@@ -1157,6 +1163,49 @@ function draw(){
                       : (q.alone? 'connects to nothing' : 'no seam yet');
       ctx.fillStyle=rgba(q.n?P.multi:P.single,fade*0.95);
       ctx.fillText(sub, px, py-clear-rise);
+    }
+    /* OFF-SCREEN BEARINGS. At this zoom most of the corpus is outside the
+       frame, so the nearest worthwhile targets are shown as marks on the
+       screen edge: teal with a '+N' where absorbing would close seams, and a
+       struck circle for an isolate, which is the one you should ignore. */
+    {
+      const cxs=W/2, cys=H/2, m=26;
+      const cand=[];
+      for (const n of N){
+        if (claimed.has(n.id)) continue;
+        const sx=n.x*view.k+view.x, sy=n.y*view.k+view.y;
+        if (sx>=-20&&sx<=W+20&&sy>=-20&&sy<=H+20) continue;   // already visible
+        let gain=0; for (const q of adj.get(n.id)||[]) if (claimed.has(q.o)) gain+=q.w;
+        const d=Math.hypot(n.x-brain.x,n.y-brain.y);
+        cand.push({n,d,gain,sx,sy});
+      }
+      cand.sort((a,b)=> (b.gain-a.gain) || (a.d-b.d));
+      for (const c of cand.slice(0,7)){
+        const ang=Math.atan2(c.sy-cys, c.sx-cxs);
+        const rx=(W/2-m)/Math.abs(Math.cos(ang)||1e-6), ry=(H/2-m)/Math.abs(Math.sin(ang)||1e-6);
+        const rr=Math.min(rx,ry);
+        const ex=cxs+Math.cos(ang)*rr, ey=cys+Math.sin(ang)*rr;
+        const near=Math.max(0.25, 1-c.d/1200);
+        if (c.gain>0){
+          ctx.fillStyle=rgba(P.multi,0.28+0.5*near);
+          ctx.beginPath();
+          ctx.moveTo(ex+Math.cos(ang)*7, ey+Math.sin(ang)*7);
+          ctx.lineTo(ex+Math.cos(ang+2.5)*8, ey+Math.sin(ang+2.5)*8);
+          ctx.lineTo(ex+Math.cos(ang-2.5)*8, ey+Math.sin(ang-2.5)*8);
+          ctx.closePath(); ctx.fill();
+          ctx.font='600 10px ui-monospace,SFMono-Regular,Menlo,monospace';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillStyle=rgba(P.multi,0.35+0.55*near);
+          ctx.fillText('+'+c.gain, ex-Math.cos(ang)*13, ey-Math.sin(ang)*13);
+        } else if (c.n.alone){
+          ctx.strokeStyle=rgba(P.single,0.30*near+0.12); ctx.lineWidth=1;
+          ctx.beginPath(); ctx.arc(ex,ey,4,0,7); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(ex-4,ey-4); ctx.lineTo(ex+4,ey+4); ctx.stroke();
+        } else {
+          ctx.fillStyle=rgba(P.dim,0.22+0.3*near);
+          ctx.beginPath(); ctx.arc(ex,ey,2.6,0,7); ctx.fill();
+        }
+      }
     }
     /* the connection itself animates: a pulse runs the seam as it closes */
     for (const q of pulses){
@@ -1231,10 +1280,11 @@ function draw(){
       ctx.fillText(verified.size+'/'+VERIFIABLE+' projects verified', L, T+(chain>1?116:98));
     }
     const [bx2,by2]=toScreen(brain);
-    const br=brain.r*Math.min(3.0,Math.max(.5,view.k));
+    const br=brain.r*Math.min(7.0,Math.max(.5,view.k));
+    const glow=br*1.9;
     ctx.save(); ctx.globalCompositeOperation='lighter';
     ctx.fillStyle=rgba(P.multi,0.16);
-    ctx.beginPath(); ctx.arc(bx2,by2,br*2.5,0,7); ctx.fill(); ctx.restore();
+    ctx.beginPath(); ctx.arc(bx2,by2,glow,0,7); ctx.fill(); ctx.restore();
     ctx.fillStyle=rgba(P.multi,0.9);
     ctx.beginPath(); ctx.arc(bx2,by2,br,0,7); ctx.fill();
     ctx.strokeStyle=rgba(P.hot,0.85); ctx.lineWidth=1.4;
