@@ -514,12 +514,22 @@ function claim(n,silent){
     const pan=Math.max(-1,Math.min(1,(n.x-brain.x)/300));
     sfxAbsorb(chain,pan);
     if (closed) sfxSeam(closed,pan);
-    pops.push({x:n.x,y:n.y,t:0,n:closed});
+    pops.push({x:n.x,y:n.y,t:0,n:closed,id:n.id,lessons:n.n,alone:n.alone});
+    flash=0;   // re-arm the transient totals readout
   }
   syncHud();
   if (claimed.size===N.length) finish();
 }
+/* one place that shortens a project id for display, used by both the
+   transient absorption readout and the explore-mode label pass */
+function prettyName(id){
+  return id.replace(/^sandbox-combined-/,'').replace(/^sandbox-/,'').replace(/^the-game-/,'');
+}
 const pops=[];
+/* Information appears WHEN something happens and then leaves, rather than
+   sitting on screen permanently: the level is wordless at rest, and every
+   absorption announces itself for about a second and a half. */
+let flash=99;
 function syncHud(){
   document.getElementById('g-seams').textContent=seamsClosed;
   document.getElementById('g-nodes').textContent=claimed.size;
@@ -590,7 +600,8 @@ function tickGame(dt){
     if (claimed.has(n.id)) continue;
     if (Math.hypot(n.x-brain.x,n.y-brain.y) < brain.r + n.rad + 5) claim(n,false);
   }
-  for (let i=pops.length-1;i>=0;i--){ pops[i].t+=dt*0.05; if(pops[i].t>1) pops.splice(i,1); }
+  for (let i=pops.length-1;i>=0;i--){ pops[i].t+=dt*0.032; if(pops[i].t>1) pops.splice(i,1); }
+  flash+=dt*0.011;
   /* hard lock: the dot is always dead centre */
   panTarget=null;
   view.x=W/2-brain.x*view.k;
@@ -981,6 +992,25 @@ function draw(){
       ctx.strokeStyle=rgba(q.n?P.multi:P.single,(1-q.t)*0.75);
       ctx.lineWidth=1.6; ctx.beginPath(); ctx.arc(px,py,rr,0,7); ctx.stroke();
     }
+    /* Only the newest absorption is named. Several nodes can be taken within
+       a few frames of each other and at nearly the same place, and labelling
+       them all drew three names on top of one another into an unreadable
+       smear — the rest keep their bloom, and the totals line carries the sum. */
+    const q=pops[pops.length-1];
+    if (q){
+      const [px,py]=toScreen({x:q.x,y:q.y});
+      const fade=Math.min(1,(1-q.t)*1.6);
+      const rise=q.t*20;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.font='600 12.5px ui-monospace,SFMono-Regular,Menlo,monospace';
+      ctx.fillStyle=rgba(P.ink,fade);
+      ctx.fillText(prettyName(q.id), px, py-30-rise);
+      ctx.font='400 10.5px ui-monospace,SFMono-Regular,Menlo,monospace';
+      const sub = q.n ? '+'+q.n+' seam'+(q.n===1?'':'s')
+                      : (q.alone? 'connects to nothing' : 'no seam yet');
+      ctx.fillStyle=rgba(q.n?P.multi:P.single,fade*0.95);
+      ctx.fillText(sub, px, py-16-rise);
+    }
     if (stick && mode==='play'){
       const R=cv.getBoundingClientRect();
       const ox=stick.ox-R.left, oy=stick.oy-R.top;
@@ -996,6 +1026,24 @@ function draw(){
       ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(hx,hy); ctx.stroke();
       ctx.fillStyle=rgba(P.multi,0.72);
       ctx.beginPath(); ctx.arc(hx,hy,9,0,7); ctx.fill();
+    }
+    if (flash<1){
+      const a=flash<0.72 ? 1 : (1-flash)/0.28;
+      const L=18, T=22;
+      ctx.textAlign='left'; ctx.textBaseline='top';
+      ctx.font='600 20px ui-monospace,SFMono-Regular,Menlo,monospace';
+      ctx.fillStyle=rgba(P.ink,a);
+      ctx.fillText(seamsClosed+' / '+E.length, L, T);
+      ctx.font='400 9.5px ui-monospace,SFMono-Regular,Menlo,monospace';
+      ctx.fillStyle=rgba(P.dim,a*0.9);
+      ctx.fillText('SEAMS CLOSED', L, T+26);
+      ctx.font='600 14px ui-monospace,SFMono-Regular,Menlo,monospace';
+      ctx.fillStyle=rgba(P.dim,a);
+      ctx.fillText(claimed.size+'/'+N.length+' absorbed', L, T+44);
+      if (chain>1){
+        ctx.fillStyle=rgba(P.single,a);
+        ctx.fillText('chain x'+chain, L, T+62);
+      }
     }
     const [bx2,by2]=toScreen(brain);
     const br=brain.r*Math.min(1.9,Math.max(.5,view.k));
@@ -1014,7 +1062,7 @@ function draw(){
   const placed=[];
   for (const L of labels){
     ctx.font=`${L.isHot?600:400} 10.5px ui-monospace,SFMono-Regular,Menlo,monospace`;
-    const label=L.n.id.replace(/^sandbox-combined-/,'').replace(/^sandbox-/,'').replace(/^the-game-/,'');
+    const label=prettyName(L.n.id);
     const tw=ctx.measureText(label).width;
     const bx=L.x-tw/2-3, by=L.y+L.r+3, bw=tw+6, bh=13;
     let clash=false;
