@@ -498,6 +498,18 @@ let chain=0, bestChain=0, seamsClosed=0;
    and whether it was ever found compatible — and a project whose every seam
    is closed becomes VERIFIED, which is the corpus's own standard, not a
    score. The 28 isolates can never reach it: nothing to close. */
+/* CHARGE — the resource that turns collecting into deciding.
+   Filed guidance (sandbox-dbz-combat#E4): a resource shapes decisions only
+   while its cost BINDS inside the decision horizon; keep it persistent
+   rather than refilled, and SCALE COST WITH THE POOL or it stops binding
+   once the pool is large. So movement drains in proportion to how big the
+   body already is, and the only income is closing seams — weighted by how
+   well corroborated they are. An isolate pays nothing: reaching for one
+   literally costs you, which is the argument the piece is making.
+   The tradeoff is Pareto, not monotonic (dbz-combat#E2): a near isolate is
+   cheap and worthless, a far hub is expensive and pays for itself. */
+let charge=100, maxCharge=100, dead=false, travelled=0;
+const DRAIN=0.052, REFUND=8.3, VERIFY_BONUS=12;
 const verified=new Set();
 const unlocked=[];        // {a,b,w,safe}
 const VERIFIABLE=N.filter(n=>n.deg>0).length;
@@ -525,7 +537,8 @@ function claim(n,silent){
   for (const {o} of adj.get(n.id)||[]){
     if (!claimed.has(o)) continue;
     const e=edgeBetweenRaw(n.id,o);
-    if (e) unlocked.push({a:n.id,b:o,w:e.w,safe:e.s});
+    if (e){ unlocked.push({a:n.id,b:o,w:e.w,safe:e.s});
+      charge=Math.min(maxCharge, charge + e.w*REFUND); }
   }
   /* a project is verified once every seam it has is closed */
   const check=[n.id, ...(adj.get(n.id)||[]).map(x=>x.o)];
@@ -534,6 +547,7 @@ function claim(n,silent){
     const nb=adj.get(id)||[];
     if (nb.length && nb.every(x=>claimed.has(x.o)) && claimed.has(id)){
       verified.add(id);
+      charge=Math.min(maxCharge, charge+VERIFY_BONUS);
       if (!silent){ announce={id, kind:'verified'}; announceT=0; sfxVerified(); }
     }
   }
@@ -565,13 +579,20 @@ function syncHud(){
   document.getElementById('g-nodes').textContent=claimed.size;
   document.getElementById('g-combo').textContent = chain>1? '×'+chain : '—';
 }
-function finish(){
+function finish(ranDry){
+  if (mode==='done') return;
   mode='done';
-  document.getElementById('e-title').textContent='Every seam closed';
+  document.getElementById('e-title').textContent =
+    ranDry ? 'Out of charge' : 'Every seam closed';
+  const lead = ranDry
+    ? `You ran dry after <b>${claimed.size}</b> of <b>${N.length}</b> projects. `
+      +`Movement costs more the larger you get, and only a closed seam pays it back — `
+      +`reaching for something that connects to nothing is charge you never recover.<br><br>`
+    : ``;
   const corrob=unlocked.filter(u=>u.w>=2).length;
   const compat=unlocked.filter(u=>u.safe).length;
   const heaviest=unlocked.slice().sort((a,b)=>b.w-a.w)[0];
-  document.getElementById('e-body').innerHTML =
+  document.getElementById('e-body').innerHTML = lead +
     `You closed <b>${seamsClosed}</b> seams and verified <b>${verified.size}</b> of the `
     +`<b>${VERIFIABLE}</b> projects that can be verified — every seam they have, closed. `
     +`Longest unbroken chain <b>${bestChain}</b>.`
@@ -584,7 +605,7 @@ function finish(){
     +`you could hold them, and they told you nothing. That is the difference between `
     +`collecting and learning.`;
   document.getElementById('endsplash').classList.remove('out');
-  sfxWin();
+  if (ranDry) sfxBreak(); else sfxWin();
 }
 /* fit the play view to the real screen: scale off the SHORTER axis, since
    height alone is a landscape-only assumption and over-zooms on a portrait
@@ -592,6 +613,7 @@ function finish(){
 function playZoom(){ return Math.max(0.5, Math.min(1.25, Math.min(W,H)/850)); }
 function startGame(){
   mode='play'; view.k=playZoom(); claimed.clear(); chain=0; bestChain=0; seamsClosed=0; pops.length=0;
+  charge=maxCharge; dead=false; travelled=0; verified.clear(); unlocked.length=0; announceT=99;
   brain.x=startNode.x; brain.y=startNode.y; brain.r=9;
   claim(startNode,true);
   panTarget=null;
@@ -629,10 +651,18 @@ function tickGame(dt){
   if (stick){
     const dx=stick.x-stick.ox, dy=stick.y-stick.oy;
     const d=Math.hypot(dx,dy);
-    if (d>STICK_DEAD){
+    if (d>STICK_DEAD && !dead){
       const throttle=Math.min(1,(d-STICK_DEAD)/STICK_RANGE);
       const sp=throttle*8.4/Math.max(0.25,view.k);
-      brain.x+=dx/d*sp*dt; brain.y+=dy/d*sp*dt;
+      const mx=dx/d*sp*dt, my=dy/d*sp*dt;
+      brain.x+=mx; brain.y+=my;
+      const moved=Math.hypot(mx,my);
+      travelled+=moved;
+      charge-=moved*DRAIN*(1+claimed.size/38);
+      /* stop the tick dead: the absorption pass below runs in this same
+         frame, and letting it continue refunded charge to a body that had
+         already run out — a run ended showing 48 charge left */
+      if (charge<=0){ charge=0; dead=true; finish(true); return; }
     }
   }
   for (const n of N){
@@ -1126,6 +1156,15 @@ function draw(){
     ctx.beginPath(); ctx.arc(bx2,by2,br,0,7); ctx.fill();
     ctx.strokeStyle=rgba(P.hot,0.85); ctx.lineWidth=1.4;
     ctx.beginPath(); ctx.arc(bx2,by2,br+3,0,7); ctx.stroke();
+    /* charge, drawn as an arc around the body — always visible, never a word */
+    const cr=br+11, frac=Math.max(0,Math.min(1,charge/maxCharge));
+    ctx.strokeStyle=rgba(P.line,0.55); ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(bx2,by2,cr,0,7); ctx.stroke();
+    const low=frac<0.25;
+    ctx.strokeStyle=rgba(low?P.single:P.multi, low?0.6+0.4*Math.abs(Math.sin(performance.now()/220)):0.9);
+    ctx.lineWidth=3; ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(bx2,by2,cr,-Math.PI/2,-Math.PI/2+frac*Math.PI*2); ctx.stroke();
+    ctx.lineCap='butt';
   }
 
   /* greedy label placement, most important first */
@@ -1177,7 +1216,9 @@ frame();
    full playtest run. Read-only. */
 window.__game={ get mode(){return mode}, get claimed(){return claimed.size},
   get brain(){return {x:brain.x,y:brain.y,r:brain.r}}, get stick(){return stick&&{...stick}},
-  get seams(){return seamsClosed}, get view(){return {x:view.x,y:view.y,k:view.k}},
+  get seams(){return seamsClosed}, get charge(){return charge}, get dead(){return dead},
+  get travelled(){return travelled}, get verified(){return verified.size},
+  seamGain(id){ let w=0; for (const x of adj.get(id)||[]) if (claimed.has(x.o)) w+=x.w; return w; }, get view(){return {x:view.x,y:view.y,k:view.k}},
   get nodes(){return N.map(n=>({id:n.id,x:n.x,y:n.y,r:n.rad,c:claimed.has(n.id),alone:n.alone}))},
   get start(){return startNode.id} };
 
