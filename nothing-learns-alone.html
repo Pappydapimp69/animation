@@ -475,6 +475,10 @@ function sfxBreak(){
   g.gain.exponentialRampToValueAtTime(0.0001,t+0.26);
   o.connect(g).connect(f).connect(master); o.start(t); o.stop(t+0.3);
 }
+function sfxVerified(){
+  if(!AC) return; const t=AC.currentTime;
+  [0,7,12].forEach((d,i)=>tone(semi(d+12),t+i*0.07,0.85,'sine',0.055,(i-1)*0.25));
+}
 function sfxWin(){
   if(!AC) return; const t=AC.currentTime;
   [0,7,12,16,19,24].forEach((d,i)=>tone(semi(d),t+i*0.11,1.6,'triangle',0.07,(i%3-1)*0.3));
@@ -489,6 +493,16 @@ function sfxWin(){
 let mode='splash';
 const claimed=new Set();
 let chain=0, bestChain=0, seamsClosed=0;
+/* Absorbing was pure collection. Closing a seam now UNLOCKS the record that
+   seam represents — the pair, how many independent lessons corroborate it,
+   and whether it was ever found compatible — and a project whose every seam
+   is closed becomes VERIFIED, which is the corpus's own standard, not a
+   score. The 28 isolates can never reach it: nothing to close. */
+const verified=new Set();
+const unlocked=[];        // {a,b,w,safe}
+const VERIFIABLE=N.filter(n=>n.deg>0).length;
+let announce=null, announceT=99;   // transient headline
+function edgeBetweenRaw(a,b){ return E.find(e=>(e.a===a&&e.b===b)||(e.a===b&&e.b===a)); }
 let brain={x:0,y:0,r:9}, started=false;
 const STICK_DEAD=8, STICK_RANGE=110;
 /* Start at the chronologically FIRST project that is actually part of the
@@ -507,6 +521,22 @@ function claim(n,silent){
   claimed.add(n.id);
   const closed = seamsFor(n.id);
   seamsClosed += closed;
+  /* every newly-closed seam is a record you now hold */
+  for (const {o} of adj.get(n.id)||[]){
+    if (!claimed.has(o)) continue;
+    const e=edgeBetweenRaw(n.id,o);
+    if (e) unlocked.push({a:n.id,b:o,w:e.w,safe:e.s});
+  }
+  /* a project is verified once every seam it has is closed */
+  const check=[n.id, ...(adj.get(n.id)||[]).map(x=>x.o)];
+  for (const id of check){
+    if (verified.has(id)) continue;
+    const nb=adj.get(id)||[];
+    if (nb.length && nb.every(x=>claimed.has(x.o)) && claimed.has(id)){
+      verified.add(id);
+      if (!silent){ announce={id, kind:'verified'}; announceT=0; sfxVerified(); }
+    }
+  }
   if (adjacent){ chain++; bestChain=Math.max(bestChain,chain); }
   else { if (chain>0 && !silent) sfxBreak(); chain = 0; }
   brain.r = 9 + Math.sqrt(claimed.size)*1.5;
@@ -538,12 +568,21 @@ function syncHud(){
 function finish(){
   mode='done';
   document.getElementById('e-title').textContent='Every seam closed';
+  const corrob=unlocked.filter(u=>u.w>=2).length;
+  const compat=unlocked.filter(u=>u.safe).length;
+  const heaviest=unlocked.slice().sort((a,b)=>b.w-a.w)[0];
   document.getElementById('e-body').innerHTML =
-    `You absorbed all <b>${N.length}</b> projects and closed <b>${seamsClosed}</b> seams — `
-    +`longest unbroken chain <b>${bestChain}</b>. <b>${aloneCount}</b> of those projects `
-    +`closed nothing at all: they have never been stress-tested against another system, `
-    +`so holding them connected you to nothing. That is the difference between collecting `
-    +`and learning.`;
+    `You closed <b>${seamsClosed}</b> seams and verified <b>${verified.size}</b> of the `
+    +`<b>${VERIFIABLE}</b> projects that can be verified — every seam they have, closed. `
+    +`Longest unbroken chain <b>${bestChain}</b>.`
+    +`<br><br>Of the records you recovered, <b>${corrob}</b> are corroborated by two or more `
+    +`independent lessons and <b>${compat}</b> were explicitly found compatible. The strongest `
+    +(heaviest?`is <b>${prettyName(heaviest.a)} + ${prettyName(heaviest.b)}</b>, held up by `
+      +`<b>${heaviest.w}</b> separate lessons. `:``)
+    +`<br><br><b>${aloneCount}</b> projects can never be verified. They have never been `
+    +`stress-tested against anything, so there was nothing to close and nothing to recover — `
+    +`you could hold them, and they told you nothing. That is the difference between `
+    +`collecting and learning.`;
   document.getElementById('endsplash').classList.remove('out');
   sfxWin();
 }
@@ -601,7 +640,7 @@ function tickGame(dt){
     if (Math.hypot(n.x-brain.x,n.y-brain.y) < brain.r + n.rad + 5) claim(n,false);
   }
   for (let i=pops.length-1;i>=0;i--){ pops[i].t+=dt*0.032; if(pops[i].t>1) pops.splice(i,1); }
-  flash+=dt*0.011;
+  flash+=dt*0.011; announceT+=dt*0.010;
   /* hard lock: the dot is always dead centre */
   panTarget=null;
   view.x=W/2-brain.x*view.k;
@@ -960,13 +999,20 @@ function draw(){
       ctx.strokeStyle=rgba(P.alone,0.75*dim); ctx.lineWidth=1;
       ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.stroke();
     } else {
-      const col = n.deg>=6 ? P.multi : P.ink;
+      const col = verified.has(n.id) ? P.multi : (n.deg>=6 ? P.multi : P.ink);
       ctx.fillStyle=rgba(P.bg,dim);
       ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
       ctx.strokeStyle=rgba(col,(isHot?1:0.82)*dim);
       ctx.lineWidth=isHot?2:1.2;
       ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.stroke();
       if (isHot){ ctx.fillStyle=rgba(col,0.9); ctx.beginPath(); ctx.arc(x,y,r*0.42,0,7); ctx.fill(); }
+      /* verified: every seam this project has is closed — it earns a ring */
+      if (verified.has(n.id) && mode==='play'){
+        ctx.fillStyle=rgba(P.multi,0.85*dim);
+        ctx.beginPath(); ctx.arc(x,y,r*0.5,0,7); ctx.fill();
+        ctx.strokeStyle=rgba(P.multi,0.55*dim); ctx.lineWidth=1;
+        ctx.beginPath(); ctx.arc(x,y,r+5,0,7); ctx.stroke();
+      }
     }
 
     /* label candidates are collected, not drawn — in the dense core the
@@ -1027,6 +1073,19 @@ function draw(){
       ctx.fillStyle=rgba(P.multi,0.72);
       ctx.beginPath(); ctx.arc(hx,hy,9,0,7); ctx.fill();
     }
+    if (announce && announceT<1){
+      const a=announceT<0.7?1:(1-announceT)/0.3;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.font='600 10px ui-monospace,SFMono-Regular,Menlo,monospace';
+      ctx.fillStyle=rgba(P.multi,a*0.9);
+      ctx.fillText('VERIFIED', W/2, 44);
+      ctx.font='600 17px ui-monospace,SFMono-Regular,Menlo,monospace';
+      ctx.fillStyle=rgba(P.ink,a);
+      ctx.fillText(prettyName(announce.id), W/2, 66);
+      ctx.font='400 10.5px ui-monospace,SFMono-Regular,Menlo,monospace';
+      ctx.fillStyle=rgba(P.dim,a*0.95);
+      ctx.fillText('every seam it has is now closed', W/2, 86);
+    }
     if (flash<1){
       const a=flash<0.72 ? 1 : (1-flash)/0.28;
       const L=18, T=22;
@@ -1044,6 +1103,19 @@ function draw(){
         ctx.fillStyle=rgba(P.single,a);
         ctx.fillText('chain x'+chain, L, T+62);
       }
+      const u=unlocked[unlocked.length-1];
+      if (u){
+        ctx.font='400 10.5px ui-monospace,SFMono-Regular,Menlo,monospace';
+        ctx.fillStyle=rgba(P.dim,a*0.9);
+        ctx.fillText(prettyName(u.a)+'  +  '+prettyName(u.b), L, T+(chain>1?82:64));
+        ctx.fillStyle=rgba(u.w>=2?P.multi:P.single,a*0.95);
+        ctx.fillText(u.w>=2 ? u.w+' independent lessons corroborate this'
+                            : 'rests on a single source'+(u.safe?' · found compatible':''),
+                     L, T+(chain>1?98:80));
+      }
+      ctx.fillStyle=rgba(P.dim,a*0.75);
+      ctx.font='400 10.5px ui-monospace,SFMono-Regular,Menlo,monospace';
+      ctx.fillText(verified.size+'/'+VERIFIABLE+' projects verified', L, T+(chain>1?116:98));
     }
     const [bx2,by2]=toScreen(brain);
     const br=brain.r*Math.min(1.9,Math.max(.5,view.k));
